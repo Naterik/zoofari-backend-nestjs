@@ -12,7 +12,7 @@ import {
 @Entity()
 class Users {
   @PrimaryGeneratedColumn()
-  id!: number;
+  id?: number;
   @Column()
   name!: string;
   @Column()

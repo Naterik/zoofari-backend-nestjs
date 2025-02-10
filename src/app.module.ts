@@ -2,8 +2,6 @@ import { UsersModule } from './users/users.module';
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { UsersController } from './users/users.controller';
-import { UsersService } from './users/users.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { RolesModule } from './roles/roles.module';
@@ -17,6 +15,7 @@ import { NewsModule } from './news/news.module';
 import { ImagesModule } from './images/images.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { EventsModule } from './events/events.module';
+import { AuthModule } from './auth/auth.module';
 import 'dotenv/config';
 import * as dotenv from 'dotenv';
 dotenv.config({ path: __dirname + '/.env' });
@@ -24,21 +23,6 @@ dotenv.config({ path: __dirname + '/.env' });
 @Module({
   imports: [
     UsersModule,
-    ConfigModule.forRoot({ isGlobal: true }),
-    TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        type: 'mysql',
-        host: configService.get('HOST'),
-        port: +configService.get('PORT'),
-        username: configService.get('USER'),
-        password: configService.get('PASS'),
-        database: configService.get('DATABASE'),
-        entities: [__dirname + '/**/entities/*.entity{.ts,.js}'],
-        synchronize: true,
-      }),
-      inject: [ConfigService],
-    }),
     RolesModule,
     AnimalsModule,
     ProductsModule,
@@ -50,9 +34,26 @@ dotenv.config({ path: __dirname + '/.env' });
     ImagesModule,
     TicketsModule,
     EventsModule,
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        type: 'mysql',
+        host: configService.get('HOST'),
+        port: +configService.get('PORT'),
+        username: configService.get('USER'),
+        password: configService.get('PASS'),
+        database: configService.get('DATABASE'),
+        entities: [__dirname + '/**/entities/*.entity{.ts,.js}'],
+        synchronize: true,
+        autoLoadEntities: true,
+      }),
+      inject: [ConfigService],
+    }),
+    AuthModule,
   ],
 
-  controllers: [AppController, UsersController],
-  providers: [AppService, UsersService],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}
