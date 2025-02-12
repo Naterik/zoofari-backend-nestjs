@@ -21,12 +21,11 @@ export class CreateUserDto {
   gender?: string;
 
   @IsOptional()
-  date?: Date;
+  dateOfBirth?: Date;
 
   @IsOptional()
   isActive?: boolean;
 
   @IsOptional()
-  @IsNumber({}, { message: 'Role ID phải là số' })
   role: number;
 }

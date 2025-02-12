@@ -12,23 +12,29 @@ import {
 @Entity()
 class Users {
   @PrimaryGeneratedColumn()
-  id?: number;
+  id: number;
   @Column()
-  name!: string;
+  name: string;
   @Column()
-  address!: string;
+  address: string;
   @Column()
   phone!: string;
   @Column()
-  gender?: string;
+  gender: string;
   @Column({ type: 'timestamp' })
-  date?: Date;
+  dateOfBirth: Date;
   @Column()
-  email!: string;
+  email: string;
   @Column()
-  password!: string;
+  password: string;
   @Column()
-  isActive!: Boolean;
+  isActive: Boolean;
+  @Column({ default: 'LOCAL' })
+  accountType: string;
+  @Column()
+  codeId: string;
+  @Column({ type: 'timestamp' })
+  codeExpired: Date;
   @ManyToOne(() => Roles, (role) => role.users)
   role: Roles;
   @OneToMany(() => Orders, (orders) => orders.user)

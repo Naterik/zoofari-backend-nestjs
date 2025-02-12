@@ -10,6 +10,11 @@ import Users from './entities/user.entity';
 import { FindOptionsSelect, Repository } from 'typeorm';
 import { hashPasswordUtils } from 'src/helpers/untils';
 import Roles from 'src/roles/entities/role.entity';
+import { paginate, Paginated, PaginateQuery } from 'nestjs-paginate';
+import { CreateAuthDto } from 'src/auth/dto/create-auth.dto';
+import { v4 as uuidv4 } from 'uuid';
+import dayjs from 'dayjs';
+import { MailerService } from '@nestjs-modules/mailer';
 
 @Injectable()
 export class UsersService {
@@ -18,6 +23,7 @@ export class UsersService {
     private usersRepository: Repository<Users>,
     @InjectRepository(Roles)
     private rolesRepository: Repository<Roles>,
+    private readonly mailerService: MailerService,
   ) {}
 
   isEmailExist = async (email: string) => {
@@ -34,7 +40,7 @@ export class UsersService {
         address,
         gender,
         isActive,
-        date,
+        dateOfBirth,
         phone,
         role: roleId = 1,
       } = createUserDto;
@@ -55,8 +61,8 @@ export class UsersService {
         password: hashPassword,
         phone,
         role,
-        isActive: isActive ?? true,
-        date,
+        isActive: isActive ?? false,
+        dateOfBirth,
         address,
         gender,
       });
@@ -68,11 +74,16 @@ export class UsersService {
     } catch (e) {
       console.log(e);
     }
-    console.log('succes');
   }
 
-  findAll() {
-    return `This action returns all users`;
+  async findAll(query: PaginateQuery): Promise<Paginated<Users>> {
+    return paginate(query, this.usersRepository, {
+      sortableColumns: ['id', 'name', 'email', 'dateOfBirth'],
+      searchableColumns: ['name', 'email'],
+      defaultSortBy: [['id', 'ASC']],
+      defaultLimit: 10,
+      maxLimit: 50,
+    });
   }
 
   findOne(id: number) {
@@ -152,6 +163,48 @@ export class UsersService {
       };
     } catch (e) {
       throw e;
+    }
+  }
+
+  async register(registerDto: CreateAuthDto) {
+    try {
+      const { name, email, password } = registerDto;
+      const isExist = await this.isEmailExist(email);
+      if (isExist) {
+        throw new BadRequestException(`Email ${email} đã tồn tại`);
+      }
+      const hashPassword = await hashPasswordUtils(password);
+      const codeId = uuidv4();
+      const user = await this.usersRepository.create({
+        name: name || 'Unnamed User',
+        email,
+        password: hashPassword,
+        phone: '0000000000',
+        address: 'Unknown',
+        gender: 'Unknown',
+        dateOfBirth: new Date(),
+        isActive: false,
+        role: { id: 1 },
+        codeId: codeId,
+        codeExpired: dayjs().add(1, 'days').toDate(),
+      });
+      const savedUser = await this.usersRepository.save(user);
+
+      this.mailerService.sendMail({
+        to: user.email,
+        subject: 'Actived account',
+        text: 'welcome', // plaintext body
+        template: 'register',
+        context: {
+          name: user.name || user.email,
+          activationCode: codeId,
+        },
+      });
+      return {
+        id: savedUser.id,
+      };
+    } catch (e) {
+      console.log(e);
     }
   }
 }

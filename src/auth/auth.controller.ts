@@ -9,20 +9,43 @@ import {
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './passport/local-auth.guard';
 import { JwtAuthGuard } from './passport/jwt-auth.guard';
+import { Public } from 'src/decorator/customized';
+import { CreateAuthDto } from './dto/create-auth.dto';
+import { MailerService } from '@nestjs-modules/mailer';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly mailerService: MailerService,
+  ) {}
 
-  @UseGuards(LocalAuthGuard)
+  @Public()
   @Post('login')
+  @UseGuards(LocalAuthGuard)
   create(@Request() req) {
     return this.authService.login(req.user);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Get('profile')
-  getProfile(@Request() req) {
-    return req.user;
+  // @UseGuards(JwtAuthGuard)
+  @Post('register')
+  @Public()
+  register(@Body() registerDto: CreateAuthDto) {
+    return this.authService.register(registerDto);
+  }
+  @Get('email')
+  @Public()
+  testMail() {
+    this.mailerService.sendMail({
+      to: 'khuonglol12@gmail.com', // list of receivers
+      subject: 'Testing Nest MailerModule ✔', // Subject line
+      text: 'welcome', // plaintext body
+      template: 'register',
+      context: {
+        name: 'email',
+        activationCode: 123,
+      },
+    });
+    return 'Hello, world!';
   }
 }

@@ -10,6 +10,9 @@ import {
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { Public } from 'src/decorator/customized';
+import { Paginate, Paginated, PaginateQuery } from 'nestjs-paginate';
+import Users from './entities/user.entity';
 
 @Controller('users')
 export class UsersController {
@@ -21,8 +24,9 @@ export class UsersController {
   }
 
   @Get()
-  findAll() {
-    return this.usersService.findAll();
+  @Public()
+  findAll(@Paginate() query: PaginateQuery): Promise<Paginated<Users>> {
+    return this.usersService.findAll(query);
   }
 
   @Get(':id')

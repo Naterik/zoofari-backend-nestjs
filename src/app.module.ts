@@ -16,9 +16,11 @@ import { ImagesModule } from './images/images.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { EventsModule } from './events/events.module';
 import { AuthModule } from './auth/auth.module';
-import 'dotenv/config';
-import * as dotenv from 'dotenv';
-dotenv.config({ path: __dirname + '/.env' });
+import { APP_GUARD } from '@nestjs/core';
+import { JwtAuthGuard } from './auth/passport/jwt-auth.guard';
+import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
+import { MailerModule } from '@nestjs-modules/mailer';
+import { join } from 'path';
 
 @Module({
   imports: [
@@ -46,7 +48,35 @@ dotenv.config({ path: __dirname + '/.env' });
         database: configService.get('DATABASE'),
         entities: [__dirname + '/**/entities/*.entity{.ts,.js}'],
         synchronize: true,
+        dropSchema: false,
         autoLoadEntities: true,
+      }),
+      inject: [ConfigService],
+    }),
+    MailerModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        transport: {
+          host: 'smtp.gmail.com',
+          port: 465,
+          secure: true,
+          ignoreTLS: true,
+          auth: {
+            user: configService.get('MAIL_USER'),
+            pass: configService.get('MAIL_PASS'),
+          },
+        },
+        defaults: {
+          from: '"No Reply" <no-reply@localhost>',
+        },
+        // preview: true,
+        template: {
+          dir: join(__dirname, '/mail/templates'),
+          adapter: new HandlebarsAdapter(),
+          options: {
+            strict: true,
+          },
+        },
       }),
       inject: [ConfigService],
     }),
@@ -54,6 +84,12 @@ dotenv.config({ path: __dirname + '/.env' });
   ],
 
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+  ],
 })
 export class AppModule {}
