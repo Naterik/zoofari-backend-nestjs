@@ -1,26 +1,27 @@
-import { UsersModule } from './users/users.module';
+import { UsersModule } from './modules/users/users.module';
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { RolesModule } from './roles/roles.module';
-import { AnimalsModule } from './animals/animals.module';
-import { ProductsModule } from './products/products.module';
-import { ProductItemOptionsModule } from './product.item.options/product.item.options.module';
-import { ProductItemsModule } from './product.items/product.items.module';
-import { OrdersModule } from './orders/orders.module';
-import { OrderDetailModule } from './order.detail/order.detail.module';
-import { NewsModule } from './news/news.module';
-import { ImagesModule } from './images/images.module';
-import { TicketsModule } from './tickets/tickets.module';
-import { EventsModule } from './events/events.module';
+import { RolesModule } from './modules/roles/roles.module';
+import { AnimalsModule } from './modules/animals/animals.module';
+import { ProductsModule } from './modules/products/products.module';
+import { ProductItemOptionsModule } from './modules/product.item.options/product.item.options.module';
+import { ProductItemsModule } from './modules/product.items/product.items.module';
+import { OrdersModule } from './modules/orders/orders.module';
+import { OrderDetailModule } from './modules/order.detail/order.detail.module';
+import { NewsModule } from './modules/news/news.module';
+import { ImagesModule } from './modules/images/images.module';
+import { TicketsModule } from './modules/tickets/tickets.module';
+import { EventsModule } from './modules/events/events.module';
 import { AuthModule } from './auth/auth.module';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/passport/jwt-auth.guard';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { join } from 'path';
+import { TransformInterceptor } from './core/transform.interceptor';
 
 @Module({
   imports: [
@@ -89,6 +90,10 @@ import { join } from 'path';
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: TransformInterceptor,
     },
   ],
 })
