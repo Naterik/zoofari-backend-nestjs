@@ -1,0 +1,67 @@
+<style>
+  .email-container {
+    font-family: Arial, sans-serif;
+    color: #333;
+    max-width: 600px;
+    margin: auto;
+    padding: 30px; /* Tăng padding để thoáng hơn */
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+  }
+
+  .email-header {
+    font-size: 28px; /* Chỉnh font size lớn hơn */
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 25px; /* Tăng margin bottom */
+    color: #345C72; /* Thêm màu cho header */
+  }
+
+  .email-content {
+    line-height: 1.6;
+  }
+
+  .verification-code {
+    display: block;
+    font-size: 24px; /* Chỉnh font size lớn hơn */
+    font-weight: bold;
+    color: #345C72; /* Thêm màu cho code */
+    text-align: center;
+    margin: 25px 0; /* Tăng margin */
+    padding: 10px 20px; /* Thêm padding cho code box */
+    border: 1px solid #ddd; /* Thêm border cho code box */
+    border-radius: 5px; /* Thêm border-radius cho code box */
+    background-color: #fff; /* Thêm background cho code box */
+  }
+
+  .email-footer {
+    text-align: center;
+    font-size: 14px;
+    color: #999;
+    margin-top: 30px;
+  }
+
+  .app-name {
+    font-size: 16px;
+    color: #333;
+    font-weight: bold; /* In đậm tên app */
+  }
+</style>
+
+<div class="email-container">
+  <div class="email-header">Chào mừng bạn đến với ZOOFARI!</div>
+  <div class="email-content">
+    <p>Xin chào {{name}},</p>
+
+    <p>Cảm ơn bạn đã đăng ký tài khoản tại ZOOFARI! Để hoàn tất quá trình đăng ký, vui lòng sử dụng mã xác minh dưới đây:</p>
+
+    <span class="verification-code">{{activationCode}}</span>
+
+    <p>Mã này sẽ hết hạn sau 5 phút. Vui lòng sử dụng mã này để kích hoạt tài khoản của bạn .</p>
+    <p>Trân trọng</p>
+  </div>
+  <div class="email-footer">
+    <p class="app-name">ZOOFARI</p>
+  </div>
+</div>

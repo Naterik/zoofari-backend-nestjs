@@ -11,7 +11,7 @@ import { FindOptionsSelect, Repository } from 'typeorm';
 import { hashPasswordUtils } from 'src/helpers/untils';
 import Roles from 'src/modules/roles/entities/role.entity';
 import { paginate, Paginated, PaginateQuery } from 'nestjs-paginate';
-import { CreateAuthDto } from 'src/auth/dto/create-auth.dto';
+import { CodeAuthDto, CreateAuthDto } from 'src/auth/dto/create-auth.dto';
 import { v4 as uuidv4 } from 'uuid';
 import dayjs from 'dayjs';
 import { MailerService } from '@nestjs-modules/mailer';
@@ -46,7 +46,9 @@ export class UsersService {
       } = createUserDto;
       const isExist = await this.isEmailExist(email);
       if (isExist) {
-        throw new BadRequestException(`Email ${email} đã tồn tại`);
+        return {
+          message: `Email ${email} đã tồn tại`,
+        };
       }
       const hashPassword = await hashPasswordUtils(password);
       const role = await this.rolesRepository.findOne({
@@ -166,18 +168,20 @@ export class UsersService {
     }
   }
 
-  async register(registerDto: CreateAuthDto) {
+  async handleRegister(registerDto: CreateAuthDto) {
     try {
       const { name, email, password } = registerDto;
       const isExist = await this.isEmailExist(email);
       if (isExist) {
-        throw new BadRequestException(`Email ${email} đã tồn tại`);
+        return {
+          message: `Email ${email} đã tồn tại`,
+        };
       }
       const hashPassword = await hashPasswordUtils(password);
-      const codeId = uuidv4();
+      const codeId = uuidv4(); //random code id
       const user = await this.usersRepository.create({
         name: name || 'Unnamed User',
-        email,
+        email: email,
         password: hashPassword,
         phone: '0000000000',
         address: 'Unknown',
@@ -186,17 +190,18 @@ export class UsersService {
         isActive: false,
         role: { id: 1 },
         codeId: codeId,
-        codeExpired: dayjs().add(1, 'days').toDate(),
+        codeExpired: dayjs().add(10, 'minutes').toDate(),
       });
       const savedUser = await this.usersRepository.save(user);
 
+      //send mail
       this.mailerService.sendMail({
         to: user.email,
         subject: 'Actived account',
         text: 'welcome', // plaintext body
         template: 'register',
         context: {
-          name: user.name || user.email,
+          name: user.name,
           activationCode: codeId,
         },
       });
@@ -206,5 +211,57 @@ export class UsersService {
     } catch (e) {
       console.log(e);
     }
+  }
+  //send verification code
+  async handleActive(data: CodeAuthDto) {
+    try {
+      const { id, code } = data;
+      const user = await this.usersRepository.findOne({
+        where: { id: Number(id), codeId: code },
+      });
+      if (!user) {
+        throw new BadRequestException('Mã code sai hoặc đã hết hạn');
+      }
+      // check code expired
+      const isExpired = dayjs().isBefore(user.codeExpired);
+      if (isExpired) {
+        return this.usersRepository.update({ id: user.id }, { isActive: true });
+      }
+      return { isExpired };
+    } catch (error) {
+      console.log(error.message);
+    }
+  }
+  async handleRetryActive(email: string) {
+    const user = await this.usersRepository.findOne({ where: { email } });
+    if (!user) {
+      throw new NotFoundException('Email không tồn tại');
+    }
+    if (user.isActive) {
+      throw new BadRequestException('Tài khoản đã được kích hoạt');
+    }
+    //update user
+    const codeId = uuidv4();
+    await this.usersRepository.update(
+      { id: user.id },
+      {
+        codeId: codeId,
+        codeExpired: dayjs().add(5, 'minutes').toDate(),
+      },
+    );
+    //send mail
+    this.mailerService.sendMail({
+      to: user.email,
+      subject: 'Send code',
+      text: 'welcome', // plaintext body
+      template: 'sendcode',
+      context: {
+        name: user.name || 'Unnamed User',
+        activationCode: codeId,
+      },
+    });
+    return {
+      id: user.id,
+    };
   }
 }

@@ -16,17 +16,20 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
 
   //lay nguoi dung dang dang nhap
   async validate(username: string, password: string): Promise<any> {
-    const user = await this.authService.validateUser(username, password);
-    if (!user) {
-      throw new Error('User không hợp lệ');
-    }
+    try {
+      const user = await this.authService.validateUser(username, password);
+      if (!user) {
+        throw new UnauthorizedException('Thông tin đăng nhập không hợp lệ');
+      }
 
-    if (user.isActive === false) {
-      throw new BadRequestException(
-        'Tài khoàn chưa được kích hoạt không hợp lệ',
-      );
+      if (user.isActive === false) {
+        throw new BadRequestException('Tài khoản chưa được kích hoạt');
+      }
+      return user;
+    } catch (error) {
+      throw error;
     }
-    return user;
   }
+
   //user đc trả về do có thư viện về
 }
