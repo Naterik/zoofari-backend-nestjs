@@ -11,7 +11,11 @@ import { FindOptionsSelect, Repository } from 'typeorm';
 import { hashPasswordUtils } from 'src/helpers/untils';
 import Roles from 'src/modules/roles/entities/role.entity';
 import { paginate, Paginated, PaginateQuery } from 'nestjs-paginate';
-import { CodeAuthDto, CreateAuthDto } from 'src/auth/dto/create-auth.dto';
+import {
+  ChangePasswordAuthDto,
+  CodeAuthDto,
+  CreateAuthDto,
+} from 'src/auth/dto/create-auth.dto';
 import { v4 as uuidv4 } from 'uuid';
 import dayjs from 'dayjs';
 import { MailerService } from '@nestjs-modules/mailer';
@@ -233,12 +237,9 @@ export class UsersService {
     }
   }
   async handleRetryActive(email: string) {
-    const user = await this.usersRepository.findOne({ where: { email } });
+    const user = await this.findByEmail(email);
     if (!user) {
       throw new NotFoundException('Email không tồn tại');
-    }
-    if (user.isActive) {
-      throw new BadRequestException('Tài khoản đã được kích hoạt');
     }
     //update user
     const codeId = uuidv4();
@@ -246,7 +247,7 @@ export class UsersService {
       { id: user.id },
       {
         codeId: codeId,
-        codeExpired: dayjs().add(5, 'minutes').toDate(),
+        codeExpired: dayjs().add(3, 'minutes').toDate(),
       },
     );
     //send mail
@@ -262,6 +263,56 @@ export class UsersService {
     });
     return {
       id: user.id,
+      email: user.email,
+    };
+  }
+
+  async handleRetryPassword(email: string) {
+    const user = await this.findByEmail(email);
+    if (!user) {
+      throw new NotFoundException('Email không tồn tại');
+    }
+    const codeId = uuidv4();
+    await this.usersRepository.update(
+      { id: user.id },
+      {
+        codeId: codeId,
+        codeExpired: dayjs().add(5, 'minutes').toDate(),
+      },
+    );
+    this.mailerService.sendMail({
+      to: user.email,
+      subject: 'Reset password',
+      text: 'welcome', // plaintext body
+      template: 'sendcode',
+      context: {
+        name: user.name || 'Unnamed User',
+        activationCode: codeId,
+      },
+    });
+    return {
+      id: user.id,
+      email: user.email,
+    };
+  }
+  async handleChangePassword(data: ChangePasswordAuthDto) {
+    if (data.password !== data.confirmPassword) {
+      throw new BadRequestException('Mật khẩu không khớp');
+    }
+    const user = await this.findByEmail(data.email);
+    if (!user) {
+      throw new NotFoundException('Email không tồn tại');
+    }
+    const isExpired = dayjs().isBefore(user.codeExpired);
+    if (isExpired) {
+      const hashPassword = await hashPasswordUtils(data.password);
+      await this.usersRepository.update(
+        { id: user.id },
+        { password: hashPassword },
+      );
+    }
+    return {
+      isExpired,
     };
   }
 }

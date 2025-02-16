@@ -15,3 +15,13 @@ export class CodeAuthDto {
   @IsNotEmpty({ message: 'Code không đc để trống' })
   code: string;
 }
+export class ChangePasswordAuthDto {
+  @IsNotEmpty({ message: 'Email không đc để trống' })
+  email: string;
+  @IsNotEmpty({ message: 'Code không đc để trống' })
+  code: string;
+  @IsNotEmpty({ message: 'Password không đc để trống' })
+  password: string;
+  @IsNotEmpty({ message: 'ConfirmPassword không đc để trống' })
+  confirmPassword: string;
+}
