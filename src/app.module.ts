@@ -1,33 +1,33 @@
-import { UsersModule } from './modules/users/users.module';
-import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { RolesModule } from './modules/roles/roles.module';
-import { AnimalsModule } from './modules/animals/animals.module';
-import { ProductsModule } from './modules/products/products.module';
-import { ProductItemOptionsModule } from './modules/product.item.options/product.item.options.module';
-import { ProductItemsModule } from './modules/product.items/product.items.module';
-import { OrdersModule } from './modules/orders/orders.module';
-import { OrderDetailModule } from './modules/order.detail/order.detail.module';
-import { NewsModule } from './modules/news/news.module';
-import { ImagesModule } from './modules/images/images.module';
-import { TicketsModule } from './modules/tickets/tickets.module';
-import { EventsModule } from './modules/events/events.module';
-import { AuthModule } from './auth/auth.module';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import { JwtAuthGuard } from './auth/passport/jwt-auth.guard';
-import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
-import { MailerModule } from '@nestjs-modules/mailer';
-import { join } from 'path';
-import { TransformInterceptor } from './core/transform.interceptor';
+import { UsersModule } from "./modules/users/users.module";
+import { Module } from "@nestjs/common";
+import { AppController } from "./app.controller";
+import { AppService } from "./app.service";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { RolesModule } from "./modules/roles/roles.module";
+import { ProductsModule } from "./modules/products/products.module";
+import { ProductItemOptionsModule } from "./modules/product.item.options/product.item.options.module";
+import { ProductItemsModule } from "./modules/product.items/product.items.module";
+import { OrdersModule } from "./modules/orders/orders.module";
+import { OrderDetailModule } from "./modules/order.detail/order.detail.module";
+import { NewsModule } from "./modules/news/news.module";
+import { ImagesModule } from "./modules/images/images.module";
+import { EventsModule } from "./modules/events/events.module";
+import { AuthModule } from "./auth/auth.module";
+import { APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
+import { JwtAuthGuard } from "./auth/passport/jwt-auth.guard";
+import { HandlebarsAdapter } from "@nestjs-modules/mailer/dist/adapters/handlebars.adapter";
+import { MailerModule } from "@nestjs-modules/mailer";
+import { join } from "path";
+import { TransformInterceptor } from "./core/transform.interceptor";
+import { SpeciesModule } from "./modules/species/species.module";
+import { EnclosuresModule } from "./modules/enclosures/enclosures.module";
+import { EmployeesModule } from "./modules/employees/employees.module";
 
 @Module({
   imports: [
     UsersModule,
     RolesModule,
-    AnimalsModule,
     ProductsModule,
     ProductItemOptionsModule,
     ProductItemsModule,
@@ -35,19 +35,18 @@ import { TransformInterceptor } from './core/transform.interceptor';
     OrderDetailModule,
     NewsModule,
     ImagesModule,
-    TicketsModule,
     EventsModule,
-    ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: ".env" }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        type: 'mysql',
-        host: configService.get('HOST'),
-        port: +configService.get('PORT'),
-        username: configService.get('USER'),
-        password: configService.get('PASS'),
-        database: configService.get('DATABASE'),
-        entities: [__dirname + '/**/entities/*.entity{.ts,.js}'],
+        type: "mysql",
+        host: configService.get("HOST"),
+        port: +configService.get("PORT"),
+        username: configService.get("USER"),
+        password: configService.get("PASS"),
+        database: configService.get("DATABASE"),
+        entities: [__dirname + "/**/entities/*.entity{.ts,.js}"],
         synchronize: true,
         dropSchema: false,
         autoLoadEntities: true,
@@ -58,13 +57,13 @@ import { TransformInterceptor } from './core/transform.interceptor';
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
         transport: {
-          host: 'smtp.gmail.com',
+          host: "smtp.gmail.com",
           port: 465,
           secure: true,
           ignoreTLS: true,
           auth: {
-            user: configService.get('MAIL_USER'),
-            pass: configService.get('MAIL_PASS'),
+            user: configService.get("MAIL_USER"),
+            pass: configService.get("MAIL_PASS"),
           },
         },
         defaults: {
@@ -72,7 +71,7 @@ import { TransformInterceptor } from './core/transform.interceptor';
         },
         // preview: true,
         template: {
-          dir: join(__dirname, '/mail/templates'),
+          dir: join(__dirname, "/mail/templates"),
           adapter: new HandlebarsAdapter(),
           options: {
             strict: true,
@@ -82,6 +81,9 @@ import { TransformInterceptor } from './core/transform.interceptor';
       inject: [ConfigService],
     }),
     AuthModule,
+    SpeciesModule,
+    EnclosuresModule,
+    EmployeesModule,
   ],
 
   controllers: [AppController],

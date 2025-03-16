@@ -1,22 +1,29 @@
-import { Orders } from 'src/modules/orders/entities/order.entity';
-import { ProductItemOptions } from 'src/modules/product.item.options/entities/product.item.option.entity';
-import { ProductItems } from 'src/modules/product.items/entities/product.item.entity';
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
+import { Order } from "src/modules/orders/entities/order.entity";
+import { Product } from "src/modules/products/entities/product.entity";
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+} from "typeorm";
 
-@Entity()
-export class OrderDetails {
+@Entity("order_details")
+export class OrderDetail {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Orders, (orders) => orders.orderDetails)
-  order: Orders;
+  @ManyToOne(() => Order, (order) => order.orderDetails)
+  @JoinColumn({ name: "order_id" })
+  order: Order;
 
-  @ManyToOne(() => ProductItems, (productItems) => productItems.orderDetails)
-  productItem: ProductItems;
+  @ManyToOne(() => Product, (product) => product.orderDetails)
+  @JoinColumn({ name: "product_id" })
+  product: Product;
 
-  @ManyToOne(
-    () => ProductItemOptions,
-    (productItemOptions) => productItemOptions.orderDetails,
-  )
-  productItemOption: ProductItemOptions;
+  @Column()
+  quantity: number;
+
+  @Column({ type: "decimal", precision: 10, scale: 2 })
+  price: number;
 }

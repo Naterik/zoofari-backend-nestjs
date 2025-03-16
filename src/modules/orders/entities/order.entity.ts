@@ -1,30 +1,36 @@
+import { OrderDetail } from "src/modules/order.detail/entities/order.detail.entity";
+import User from "src/modules/users/entities/user.entity";
 import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  JoinColumn,
   OneToMany,
-} from 'typeorm';
-import { OrderDetails } from '../../order.detail/entities/order.detail.entity';
-import Users from 'src/modules/users/entities/user.entity';
+} from "typeorm";
 
-@Entity()
-export class Orders {
+@Entity("orders")
+export class Order {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  orderDate: Date;
+  @ManyToOne(() => User, (user) => user.orders)
+  @JoinColumn({ name: "user_id" })
+  user: User;
 
-  @Column('decimal', { precision: 10, scale: 2 })
-  totalAmount: number;
+  @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
+  order_date: Date;
 
-  @Column()
+  @Column({ type: "decimal", precision: 10, scale: 2 })
+  total_amount: number;
+
+  @Column({
+    type: "enum",
+    enum: ["Pending", "Completed", "Cancelled"],
+    default: "Pending",
+  })
   status: string;
 
-  @ManyToOne(() => Users, (user) => user.orders)
-  user: Users;
-
-  @OneToMany(() => OrderDetails, (orderDetails) => orderDetails.order)
-  orderDetails: OrderDetails[];
+  @OneToMany(() => OrderDetail, (orderDetail) => orderDetail.order)
+  orderDetails: OrderDetail[];
 }

@@ -2,21 +2,22 @@ import {
   BadRequestException,
   Injectable,
   UnauthorizedException,
-} from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { comparePasswordUtils } from 'src/helpers/untils';
-import { UsersService } from 'src/modules/users/users.service';
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { comparePasswordUtils } from "src/helpers/untils";
+import { UsersService } from "src/modules/users/users.service";
 import {
   ChangePasswordAuthDto,
   CodeAuthDto,
   CreateAuthDto,
-} from './dto/create-auth.dto';
+} from "./dto/create-auth.dto";
+import { UpdateProfileDto } from "src/modules/users/dto/update-user.dto";
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UsersService,
-    private jwtService: JwtService,
+    private jwtService: JwtService
   ) {}
 
   async validateUser(username: string, pass: string): Promise<any> {
@@ -24,7 +25,7 @@ export class AuthService {
     if (!user) return null;
     const isValidPassword = await comparePasswordUtils(pass, user.password);
     if (!isValidPassword) {
-      throw new UnauthorizedException('Mật khẩu không chính xác');
+      throw new UnauthorizedException("Mật khẩu không chính xác");
     }
     return user;
   }
@@ -55,5 +56,8 @@ export class AuthService {
   }
   async changePassword(data: ChangePasswordAuthDto) {
     return await this.usersService.handleChangePassword(data);
+  }
+  async updateProfile(userId: number, data: UpdateProfileDto) {
+    return await this.usersService.updateProfile(userId, data);
   }
 }

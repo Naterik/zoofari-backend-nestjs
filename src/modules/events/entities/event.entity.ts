@@ -1,20 +1,40 @@
-import { News } from 'src/modules/news/entities/news.entity';
-import { Tickets } from 'src/modules/tickets/entities/ticket.entity';
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
-@Entity()
-export class Events {
+import { Enclosure } from "src/modules/enclosures/entities/enclosure.entity";
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+} from "typeorm";
+
+@Entity("events")
+export class Event {
   @PrimaryGeneratedColumn()
-  id!: number;
-  @Column()
-  titile!: string;
-  @Column()
-  description?: string;
-  @Column({ type: 'timestamp' })
-  startDate?: Date;
-  @Column({ type: 'timestamp' })
-  endDate?: Date;
-  @OneToMany(() => Tickets, (tickets) => tickets.event)
-  tickets: Tickets[];
-  @OneToMany(() => News, (news) => news.event)
-  news: News[];
+  id: number;
+
+  @Column({ length: 100 })
+  title: string;
+
+  @Column({ type: "text", nullable: true })
+  description: string;
+
+  @Column({ type: "datetime" })
+  start_date: Date;
+
+  @Column({ type: "datetime" })
+  end_date: Date;
+
+  @ManyToOne(() => Enclosure, (enclosure) => enclosure.events)
+  @JoinColumn({ name: "enclosure_id" })
+  enclosure: Enclosure;
+
+  @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
+  created_at: Date;
+
+  @Column({
+    type: "datetime",
+    default: () => "CURRENT_TIMESTAMP",
+    onUpdate: "CURRENT_TIMESTAMP",
+  })
+  updated_at: Date;
 }

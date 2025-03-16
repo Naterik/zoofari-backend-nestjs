@@ -1,21 +1,26 @@
-import { Events } from 'src/modules/events/entities/event.entity';
-import Users from 'src/modules/users/entities/user.entity';
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
-
-@Entity()
-export class Tickets {
+import { TicketSale } from "src/modules/ticket.sales/entities/ticket.sale.entity";
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from "typeorm";
+import { Image } from "src/modules/images/entities/image.entity";
+@Entity("tickets")
+export class Ticket {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Events, (event) => event.tickets)
-  event: Events;
+  @Column({
+    type: "enum",
+    enum: ["Adult", "Child", "VIP"],
+  })
+  type: string;
 
-  @ManyToOne(() => Users, (user) => user.tickets)
-  user: Users;
-
-  @Column('decimal', { precision: 10, scale: 2 })
+  @Column({ type: "decimal", precision: 10, scale: 2 })
   price: number;
 
-  @Column()
-  status: string;
+  @Column({ type: "text", nullable: true })
+  description: string;
+
+  @OneToMany(() => TicketSale, (ticketSale) => ticketSale.ticket)
+  ticketSales: TicketSale[];
+
+  @OneToMany(() => Image, (image) => image.ticket)
+  images: Image[];
 }

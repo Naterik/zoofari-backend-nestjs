@@ -4,9 +4,9 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { CreateUserDto } from "./dto/create-user.dto";
-import { UpdateUserDto } from "./dto/update-user.dto";
+import { UpdateProfileDto, UpdateUserDto } from "./dto/update-user.dto";
 import { InjectRepository } from "@nestjs/typeorm";
-import Users from "./entities/user.entity";
+import { Users } from "./entities/user.entity";
 import { Repository } from "typeorm";
 import { hashPasswordUtils } from "src/helpers/untils";
 import Roles from "src/modules/roles/entities/role.entity";
@@ -19,7 +19,6 @@ import { v4 as uuidv4 } from "uuid";
 import dayjs from "dayjs";
 import { MailerService } from "@nestjs-modules/mailer";
 import { paginate, Paginated, PaginateQuery } from "nestjs-paginate";
-import aqp from "api-query-params";
 
 @Injectable()
 export class UsersService {
@@ -31,38 +30,27 @@ export class UsersService {
     private readonly mailerService: MailerService
   ) {}
 
-  async findAll(query: string, current: number, pageSize: number) {
-    const { filter, sort } = aqp(query);
-
-    if (filter.current) delete filter.current;
-    if (filter.pageSize) delete filter.pageSize;
-
-    current = current ? Number(current) : 1;
-    pageSize = pageSize ? Number(pageSize) : 10;
-
-    const totalItems = await this.usersRepository.count({ where: filter });
-    const totalPages = Math.ceil(totalItems / pageSize);
-    const skip = (current - 1) * pageSize;
-
-    const results = await this.usersRepository.find({
-      where: filter,
-      order: sort as any,
-      skip,
-      take: pageSize,
-      select: {
-        password: false,
+  async findAll(query: PaginateQuery): Promise<Paginated<Users>> {
+    return await paginate(query, this.usersRepository, {
+      sortableColumns: ["id", "name", "dateOfBirth"],
+      nullSort: "last",
+      defaultSortBy: [["id", "DESC"]],
+      searchableColumns: ["name", "email", "dateOfBirth"],
+      select: [
+        "id",
+        "name",
+        "dateOfBirth",
+        "email",
+        "phone",
+        "address",
+        "isActive",
+      ],
+      filterableColumns: {
+        email: true,
+        name: true,
+        dateOfBirth: true,
       },
     });
-
-    return {
-      meta: {
-        current,
-        pageSize,
-        pages: totalPages,
-        total: totalItems,
-      },
-      results,
-    };
   }
 
   isEmailExist = async (email: string) => {
@@ -78,10 +66,8 @@ export class UsersService {
         password,
         address,
         gender,
-        isActive,
         dateOfBirth,
         phone,
-        codeExpired,
         role: roleId = 1,
       } = createUserDto;
       const isExist = await this.isEmailExist(email);
@@ -101,13 +87,11 @@ export class UsersService {
         name,
         email,
         password: hashPassword,
-        phone: phone ?? 0,
+        phone: phone,
         role,
-        isActive: isActive ?? false,
-        dateOfBirth: dateOfBirth ?? new Date(),
-        address: address ?? "UnKnown",
-        gender: gender ?? "UNKnown",
-        codeExpired: codeExpired ?? dayjs().add(3, "minutes").toDate(),
+        dateOfBirth: dateOfBirth,
+        address: address,
+        gender: gender,
       });
       const saveUser = await this.usersRepository.save(user);
       return {
@@ -339,6 +323,60 @@ export class UsersService {
     }
     return {
       isExpired,
+    };
+  }
+  async getUserHistory(userId: number) {
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+      relations: ["ticketSalesAsCustomer", "orders"],
+      select: ["id", "name", "email"],
+    });
+
+    if (!user) {
+      throw new NotFoundException("Người dùng không tồn tại");
+    }
+
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+      },
+      ticketSales: user.ticketSalesAsCustomer,
+      orders: user.orders,
+    };
+  }
+  async updateProfile(userId: number, updateProfileDto: UpdateProfileDto) {
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException("Người dùng không tồn tại");
+    }
+
+    const updateData: Partial<Users> = {
+      name: updateProfileDto.name ?? user.name,
+      address: updateProfileDto.address ?? user.address,
+      phone: updateProfileDto.phone ?? user.phone,
+      gender: updateProfileDto.gender ?? user.gender,
+      dateOfBirth: updateProfileDto.dateOfBirth ?? user.dateOfBirth,
+    };
+
+    await this.usersRepository.update(userId, updateData);
+    const updatedUser = await this.usersRepository.findOne({
+      where: { id: userId },
+      select: [
+        "id",
+        "name",
+        "email",
+        "phone",
+        "address",
+        "gender",
+        "dateOfBirth",
+      ],
+    });
+
+    return {
+      message: "Cập nhật thông tin cá nhân thành công",
+      user: updatedUser,
     };
   }
 }
