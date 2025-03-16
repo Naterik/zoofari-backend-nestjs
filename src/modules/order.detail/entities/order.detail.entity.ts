@@ -1,5 +1,3 @@
-import { Order } from "src/modules/orders/entities/order.entity";
-import { Product } from "src/modules/products/entities/product.entity";
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -7,6 +5,10 @@ import {
   ManyToOne,
   JoinColumn,
 } from "typeorm";
+import { Order } from "src/modules/orders/entities/order.entity";
+import { ProductItems } from "src/modules/product.items/entities/product.item.entity";
+import { ProductItemOptions } from "src/modules/product.item.options/entities/product.item.option.entity";
+import { Product } from "src/modules/products/entities/product.entity";
 
 @Entity("order_details")
 export class OrderDetail {
@@ -20,6 +22,14 @@ export class OrderDetail {
   @ManyToOne(() => Product, (product) => product.orderDetails)
   @JoinColumn({ name: "product_id" })
   product: Product;
+
+  @ManyToOne(() => ProductItems, (productItem) => productItem.orderDetails)
+  @JoinColumn({ name: "product_item_id" })
+  productItem: ProductItems;
+
+  @ManyToOne(() => ProductItemOptions, (option) => option.orderDetails)
+  @JoinColumn({ name: "product_item_option_id" })
+  productItemOption: ProductItemOptions;
 
   @Column()
   quantity: number;

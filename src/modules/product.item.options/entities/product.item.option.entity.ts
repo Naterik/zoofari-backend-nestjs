@@ -1,37 +1,33 @@
-import { Images } from 'src/modules/images/entities/image.entity';
-import { OrderDetails } from 'src/modules/order.detail/entities/order.detail.entity';
-import { ProductItems } from 'src/modules/product.items/entities/product.item.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
   OneToMany,
-} from 'typeorm';
+} from "typeorm";
+import { ProductItems } from "src/modules/product.items/entities/product.item.entity";
+import { OrderDetail } from "src/modules/order.detail/entities/order.detail.entity";
 
-@Entity()
+@Entity("product_item_options")
 export class ProductItemOptions {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
-  titile: string;
+  @Column({ length: 100 })
+  title: string;
 
-  @Column('decimal', { precision: 10, scale: 2 })
+  @Column({ type: "decimal", precision: 10, scale: 2 })
   additionPrice: number;
 
-  @Column()
-  optionDecription: string;
+  @Column({ length: 255 })
+  optionDescription: string;
 
   @ManyToOne(
     () => ProductItems,
-    (productItem) => productItem.productItemOptions,
+    (productItem) => productItem.productItemOptions
   )
-  productItem: ProductItems[];
+  productItem: ProductItems;
 
-  @OneToMany(
-    () => OrderDetails,
-    (orderDetails) => orderDetails.productItemOption,
-  )
-  orderDetails: OrderDetails[];
+  @OneToMany(() => OrderDetail, (orderDetail) => orderDetail.productItemOption)
+  orderDetails: OrderDetail[];
 }

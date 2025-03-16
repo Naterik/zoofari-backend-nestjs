@@ -1,5 +1,5 @@
 import { OrderDetail } from "src/modules/order.detail/entities/order.detail.entity";
-import User from "src/modules/users/entities/user.entity";
+import { Users } from "src/modules/users/entities/user.entity";
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -14,9 +14,9 @@ export class Order {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => User, (user) => user.orders)
+  @ManyToOne(() => Users, (user) => user.orders)
   @JoinColumn({ name: "user_id" })
-  user: User;
+  user: Users;
 
   @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
   order_date: Date;

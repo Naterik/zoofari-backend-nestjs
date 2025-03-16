@@ -1,4 +1,5 @@
 import { Enclosure } from "src/modules/enclosures/entities/enclosure.entity";
+import { News } from "src/modules/news/entities/news.entity";
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -37,4 +38,6 @@ export class Event {
     onUpdate: "CURRENT_TIMESTAMP",
   })
   updated_at: Date;
+  @ManyToOne(() => News, (news) => news.event)
+  news: News[];
 }

@@ -1,4 +1,5 @@
 import { Animal } from "src/modules/animals/entities/animal.entity";
+import { ProductItems } from "src/modules/product.items/entities/product.item.entity";
 import { Product } from "src/modules/products/entities/product.entity";
 import { Ticket } from "src/modules/tickets/entities/ticket.entity";
 import {
@@ -15,10 +16,10 @@ export class Image {
   id: number;
 
   @Column({ length: 255 })
-  url: string; // URL hoặc đường dẫn ảnh (có thể lưu trên cloud như AWS S3)
+  url: string;
 
   @Column({ length: 255, nullable: true })
-  description: string; // Mô tả ảnh (ví dụ: "Ảnh động vật từ phía trước")
+  description: string;
 
   @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
   created_at: Date;
@@ -37,6 +38,12 @@ export class Image {
   @ManyToOne(() => Product, (product) => product.images, { nullable: true })
   @JoinColumn({ name: "product_id" })
   product: Product;
+
+  @ManyToOne(() => ProductItems, (productItem) => productItem.images, {
+    nullable: true,
+  })
+  @JoinColumn({ name: "product_item_id" })
+  productItem: ProductItems;
 
   @ManyToOne(() => Ticket, (ticket) => ticket.images, { nullable: true })
   @JoinColumn({ name: "ticket_id" })

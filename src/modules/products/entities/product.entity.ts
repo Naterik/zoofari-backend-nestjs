@@ -1,14 +1,15 @@
-import { Animal } from "src/modules/animals/entities/animal.entity";
-import { OrderDetail } from "src/modules/order.detail/entities/order.detail.entity";
-import { Image } from "src/modules/images/entities/image.entity";
 import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
-  JoinColumn,
   OneToMany,
+  JoinColumn,
 } from "typeorm";
+import { Animal } from "src/modules/animals/entities/animal.entity";
+import { Image } from "src/modules/images/entities/image.entity";
+import { OrderDetail } from "src/modules/order.detail/entities/order.detail.entity";
+import { ProductItems } from "src/modules/product.items/entities/product.item.entity";
 
 @Entity("products")
 export class Product {
@@ -21,11 +22,15 @@ export class Product {
   @Column({ type: "text", nullable: true })
   description: string;
 
-  @Column({ type: "decimal", precision: 10, scale: 2 })
-  price: number;
-
   @Column()
   stock: number;
+
+  @Column({
+    type: "enum",
+    enum: ["Available", "OutOfStock", "Discontinued"],
+    default: "Available",
+  })
+  status: string;
 
   @ManyToOne(() => Animal, (animal) => animal.products)
   @JoinColumn({ name: "animal_id" })
@@ -43,6 +48,8 @@ export class Product {
 
   @OneToMany(() => OrderDetail, (orderDetail) => orderDetail.product)
   orderDetails: OrderDetail[];
+  @OneToMany(() => ProductItems, (productItems) => productItems.product)
+  productItems: ProductItems[];
 
   @OneToMany(() => Image, (image) => image.product)
   images: Image[];

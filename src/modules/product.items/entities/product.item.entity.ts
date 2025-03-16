@@ -1,43 +1,44 @@
-import { OrderDetails } from 'src/modules/order.detail/entities/order.detail.entity';
-import { ProductItemOptions } from 'src/modules/product.item.options/entities/product.item.option.entity';
-import Products from 'src/modules/products/entities/product.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
   OneToMany,
-} from 'typeorm';
-import { Images } from 'src/modules/images/entities/image.entity';
+} from "typeorm";
+import { Product } from "src/modules/products/entities/product.entity";
+import { Image } from "src/modules/images/entities/image.entity";
+import { ProductItemOptions } from "src/modules/product.item.options/entities/product.item.option.entity";
+import { OrderDetail } from "src/modules/order.detail/entities/order.detail.entity";
 
-@Entity()
+@Entity("product_items")
 export class ProductItems {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
-  titile: string;
+  @Column({ length: 100 })
+  title: string;
 
-  @Column('decimal', { precision: 10, scale: 2 })
+  @Column({ type: "decimal", precision: 10, scale: 2 })
   basePrice: number;
 
+  @Column({ length: 255 })
+  description: string;
+
+  @Column({ length: 50, unique: true })
+  sku: string; // Mã sản phẩm độc đáo
+
   @Column()
-  decription: string;
+  stock: number;
 
-  @ManyToOne(() => Images, (images) => images.productItems)
-  image: Images;
+  @ManyToOne(() => Product, (product) => product.productItems)
+  product: Product;
 
-  @ManyToOne(() => Products, (product) => product.productItems)
-  product: Products;
+  @OneToMany(() => Image, (image) => image.productItem)
+  images: Image[];
 
-  @OneToMany(
-    () => ProductItemOptions,
-    (productItemOptions) => productItemOptions.productItem,
-  )
-  productItemOptions: ProductItemOptions;
-  @OneToMany(
-    () => OrderDetails,
-    (orderDetails) => orderDetails.productItemOption,
-  )
-  orderDetails: OrderDetails[];
+  @OneToMany(() => ProductItemOptions, (option) => option.productItem)
+  productItemOptions: ProductItemOptions[];
+
+  @OneToMany(() => OrderDetail, (orderDetail) => orderDetail.productItem)
+  orderDetails: OrderDetail[];
 }
