@@ -1,29 +1,44 @@
-import { PartialType } from "@nestjs/mapped-types";
-import { CreateUserDto } from "./create-user.dto";
-import { OmitType } from "@nestjs/mapped-types";
-import { IsEnum, IsOptional, IsString, Matches } from "class-validator";
+import {
+  IsString,
+  IsEmail,
+  IsOptional,
+  IsEnum,
+  IsArray,
+  IsNumber,
+} from "class-validator";
+import { Gender } from "../entities/user.entity";
 
-export class UpdateUserDto extends OmitType(CreateUserDto, [
-  "password",
-  "email",
-] as const) {}
-export class UpdateProfileDto {
+export class UpdateUserDto {
+  @IsString()
   @IsOptional()
-  @IsString({ message: "Tên phải là chuỗi" })
   name?: string;
 
+  @IsEmail()
   @IsOptional()
-  @IsString({ message: "Địa chỉ phải là chuỗi" })
+  email?: string;
+
+  @IsString()
+  @IsOptional()
+  password?: string;
+
+  @IsString()
+  @IsOptional()
   address?: string;
 
+  @IsString()
   @IsOptional()
-  @Matches(/^\d{10}$/, { message: "Số điện thoại phải là 10 chữ số" })
   phone?: string;
 
+  @IsEnum(Gender)
   @IsOptional()
-  @IsEnum(["Male", "Female", "Other"], { message: "Giới tính không hợp lệ" })
-  gender?: string;
+  gender?: Gender;
 
+  @IsString()
   @IsOptional()
-  dateOfBirth?: Date;
+  dateOfBirth?: string; // ISO string for flexibility with dayjs
+
+  @IsArray()
+  @IsNumber({}, { each: true })
+  @IsOptional()
+  roleIds?: number[];
 }

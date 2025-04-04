@@ -2,27 +2,29 @@ import { Event } from "src/modules/events/entities/event.entity";
 import {
   Column,
   Entity,
-  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from "typeorm";
 
-@Entity()
+@Entity("news")
 export class News {
   @PrimaryGeneratedColumn()
-  id!: number;
+  id: number;
+
   @Column()
-  titile!: string;
-  @Column()
+  title: string;
+
+  @Column({ type: "text", nullable: true })
   content?: string;
-  @Column({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
+
+  @CreateDateColumn({ type: "timestamp", name: "created_at" })
   createdAt: Date;
-  @Column({
-    type: "timestamp",
-    default: () => "CURRENT_TIMESTAMP",
-    onUpdate: "CURRENT_TIMESTAMP",
-  })
+
+  @UpdateDateColumn({ type: "timestamp", name: "updated_at" })
   updatedAt: Date;
-  @OneToMany(() => Event, (events) => events.news)
-  event: Event[];
+
+  @OneToMany(() => Event, (event) => event.news)
+  events: Event[];
 }

@@ -1,4 +1,4 @@
-import bcrypt = require('bcrypt');
+import bcrypt = require("bcrypt");
 const saltRounds = 10;
 
 export const hashPasswordUtils = async (plainPassword: string) => {
@@ -11,7 +11,7 @@ export const hashPasswordUtils = async (plainPassword: string) => {
 
 export const comparePasswordUtils = async (
   plainPassword: string,
-  hashPassword: string,
+  hashPassword: string
 ) => {
   try {
     return await bcrypt.compare(plainPassword, hashPassword);

@@ -9,6 +9,8 @@ import {
   ManyToOne,
   JoinColumn,
   OneToMany,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from "typeorm";
 
 @Entity("animals")
@@ -40,14 +42,10 @@ export class Animal {
   @Column({ length: 255 })
   health_status: string;
 
-  @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
+  @CreateDateColumn({ type: "datetime", name: "created_at" })
   created_at: Date;
 
-  @Column({
-    type: "datetime",
-    default: () => "CURRENT_TIMESTAMP",
-    onUpdate: "CURRENT_TIMESTAMP",
-  })
+  @UpdateDateColumn({ type: "datetime", name: "updated_at" })
   updated_at: Date;
 
   @OneToMany(() => Product, (product) => product.animal)

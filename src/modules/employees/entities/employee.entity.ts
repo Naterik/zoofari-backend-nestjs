@@ -1,40 +1,43 @@
 import { TicketSale } from "src/modules/ticket.sales/entities/ticket.sale.entity";
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from "typeorm";
+import { User } from "src/modules/users/entities/user.entity";
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToOne,
+  JoinColumn,
+  OneToMany,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from "typeorm";
 
 @Entity("employees")
 export class Employee {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ length: 50 })
-  first_name: string;
+  @Column({ name: "user_id" })
+  userId: number;
 
   @Column({ length: 50 })
-  last_name: string;
+  name: string;
 
-  @Column({ length: 50 })
-  role: string;
-
-  @Column({ length: 100, unique: true })
+  @Column({ length: 100 })
   email: string;
 
-  @Column({ length: 20 })
+  @Column({ length: 20, nullable: true })
   phone: string;
 
-  @Column({ type: "date" })
-  hire_date: Date;
+  @CreateDateColumn({ type: "datetime", name: "created_at" })
+  createdAt: Date;
 
-  @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
-  created_at: Date;
+  @UpdateDateColumn({ type: "datetime", name: "updated_at" })
+  updatedAt: Date;
 
-  @Column({
-    type: "datetime",
-    default: () => "CURRENT_TIMESTAMP",
-    onUpdate: "CURRENT_TIMESTAMP",
-  })
-  updated_at: Date;
+  @OneToOne(() => User, (user) => user.employee)
+  @JoinColumn({ name: "user_id" })
+  user: User;
 
-  // Quan hệ với TicketSales (nhân viên bán vé)
   @OneToMany(() => TicketSale, (ticketSale) => ticketSale.employee)
   ticketSales: TicketSale[];
 }

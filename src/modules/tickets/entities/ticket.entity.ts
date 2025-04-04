@@ -1,6 +1,7 @@
-import { TicketSale } from "src/modules/ticket.sales/entities/ticket.sale.entity";
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from "typeorm";
 import { Image } from "src/modules/images/entities/image.entity";
+import { TicketSale } from "src/modules/ticket.sales/entities/ticket.sale.entity";
+
 @Entity("tickets")
 export class Ticket {
   @PrimaryGeneratedColumn()

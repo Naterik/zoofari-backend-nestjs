@@ -1,39 +1,41 @@
 import {
-  IsNotEmpty,
+  IsString,
   IsEmail,
   IsOptional,
   IsEnum,
-  Matches,
+  IsArray,
+  IsNumber,
 } from "class-validator";
+import { Gender } from "../entities/user.entity";
 
 export class CreateUserDto {
-  @IsNotEmpty({ message: "Tên không được để trống" })
+  @IsString()
   name: string;
 
-  @IsNotEmpty({ message: "Email không được để trống" })
-  @IsEmail({}, { message: "Email không hợp lệ" })
+  @IsEmail()
   email: string;
 
-  @IsNotEmpty({ message: "Password không được để trống" })
-  @Matches(/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/, {
-    message: "Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ và số",
-  })
+  @IsString()
   password: string;
 
+  @IsString()
   @IsOptional()
   address?: string;
 
+  @IsString()
   @IsOptional()
-  @Matches(/^\d{10}$/, { message: "Số điện thoại phải là 10 chữ số" })
   phone?: string;
 
+  @IsEnum(Gender)
   @IsOptional()
-  gender?: "Male" | "Female" | "Other";
+  gender?: Gender;
 
+  @IsString()
   @IsOptional()
-  dateOfBirth?: Date;
+  dateOfBirth?: string;
 
+  @IsArray()
+  @IsNumber({}, { each: true })
   @IsOptional()
-  @IsEnum([1, 2, 3], { message: "Vai trò không hợp lệ" })
-  role?: number;
+  roleIds?: number[];
 }

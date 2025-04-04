@@ -1,6 +1,6 @@
 import { Employee } from "src/modules/employees/entities/employee.entity";
 import { Ticket } from "src/modules/tickets/entities/ticket.entity";
-import { Users } from "src/modules/users/entities/user.entity";
+import { User } from "src/modules/users/entities/user.entity";
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -18,9 +18,9 @@ export class TicketSale {
   @JoinColumn({ name: "ticket_id" })
   ticket: Ticket;
 
-  @ManyToOne(() => Users, (user) => user.ticketSalesAsCustomer)
+  @ManyToOne(() => User, (user) => user.ticketSalesAsCustomer)
   @JoinColumn({ name: "customer_id" })
-  customer: Users;
+  customer: User;
 
   @ManyToOne(() => Employee, (employee) => employee.ticketSales)
   @JoinColumn({ name: "employee_id" })
@@ -32,8 +32,8 @@ export class TicketSale {
   @Column({ type: "decimal", precision: 10, scale: 2 })
   total_price: number;
 
-  // @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
-  // sale_date: Date;
+  @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
+  sale_date: Date;
 
   @Column({
     type: "enum",

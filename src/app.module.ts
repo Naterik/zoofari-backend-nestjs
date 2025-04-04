@@ -23,6 +23,8 @@ import { TransformInterceptor } from "./core/transform.interceptor";
 import { SpeciesModule } from "./modules/species/species.module";
 import { EnclosuresModule } from "./modules/enclosures/enclosures.module";
 import { EmployeesModule } from "./modules/employees/employees.module";
+import { UserRoleModule } from "./modules/user_role/user_role.module";
+import { RolesGuard } from "./auth/passport/roles.guard";
 
 @Module({
   imports: [
@@ -84,6 +86,7 @@ import { EmployeesModule } from "./modules/employees/employees.module";
     SpeciesModule,
     EnclosuresModule,
     EmployeesModule,
+    UserRoleModule,
   ],
 
   controllers: [AppController],
@@ -96,6 +99,10 @@ import { EmployeesModule } from "./modules/employees/employees.module";
     {
       provide: APP_INTERCEPTOR,
       useClass: TransformInterceptor,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
   ],
 })

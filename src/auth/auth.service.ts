@@ -11,7 +11,7 @@ import {
   CodeAuthDto,
   CreateAuthDto,
 } from "./dto/create-auth.dto";
-import { UpdateProfileDto } from "src/modules/users/dto/update-user.dto";
+import { UpdateUserDto } from "src/modules/users/dto/update-user.dto";
 
 @Injectable()
 export class AuthService {
@@ -30,13 +30,24 @@ export class AuthService {
     return user;
   }
 
+  // auth.service.ts
   async login(user: any) {
-    const payload = { username: user.email, sub: user.id };
+    const userWithRoles = await this.usersService.findOne(user.id);
+
+    const roles = userWithRoles.userRoles.map((userRole) => userRole.role.name);
+
+    const payload = {
+      username: user.email,
+      sub: user.id,
+      roles: roles,
+    };
+
     return {
       user: {
-        email: user.email,
         id: user.id,
+        email: user.email,
         name: user.name,
+        roles: roles,
       },
       access_token: this.jwtService.sign(payload),
     };
@@ -57,7 +68,7 @@ export class AuthService {
   async changePassword(data: ChangePasswordAuthDto) {
     return await this.usersService.handleChangePassword(data);
   }
-  async updateProfile(userId: number, data: UpdateProfileDto) {
+  async updateProfile(userId: number, data: UpdateUserDto) {
     return await this.usersService.updateProfile(userId, data);
   }
 }

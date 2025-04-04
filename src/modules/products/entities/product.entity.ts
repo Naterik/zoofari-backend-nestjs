@@ -5,6 +5,8 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from "typeorm";
 import { Animal } from "src/modules/animals/entities/animal.entity";
 import { Image } from "src/modules/images/entities/image.entity";
@@ -20,7 +22,7 @@ export class Product {
   name: string;
 
   @Column({ type: "text", nullable: true })
-  description: string;
+  description?: string;
 
   @Column()
   stock: number;
@@ -36,18 +38,15 @@ export class Product {
   @JoinColumn({ name: "animal_id" })
   animal: Animal;
 
-  @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
+  @CreateDateColumn({ type: "datetime", name: "created_at" })
   created_at: Date;
 
-  @Column({
-    type: "datetime",
-    default: () => "CURRENT_TIMESTAMP",
-    onUpdate: "CURRENT_TIMESTAMP",
-  })
+  @UpdateDateColumn({ type: "datetime", name: "updated_at" })
   updated_at: Date;
 
   @OneToMany(() => OrderDetail, (orderDetail) => orderDetail.product)
   orderDetails: OrderDetail[];
+
   @OneToMany(() => ProductItems, (productItems) => productItems.product)
   productItems: ProductItems[];
 

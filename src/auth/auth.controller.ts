@@ -7,6 +7,7 @@ import {
   Get,
   UnauthorizedException,
   Patch,
+  BadRequestException,
 } from "@nestjs/common";
 import { AuthService } from "./auth.service";
 import { LocalAuthGuard } from "./passport/local-auth.guard";
@@ -18,7 +19,6 @@ import {
   CreateAuthDto,
 } from "./dto/create-auth.dto";
 import { MailerService } from "@nestjs-modules/mailer";
-import { UpdateProfileDto } from "src/modules/users/dto/update-user.dto";
 
 @Controller("auth")
 export class AuthController {
@@ -32,6 +32,9 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @ResponseMessage("Fetch login")
   handleLogin(@Request() req) {
+    if (!req.user || !req.user.id) {
+      throw new BadRequestException("User data is invalid or missing");
+    }
     return this.authService.login(req.user);
   }
 
@@ -63,28 +66,14 @@ export class AuthController {
   changePassword(@Body() changePassDto: ChangePasswordAuthDto) {
     return this.authService.changePassword(changePassDto);
   }
-  @UseGuards(JwtAuthGuard)
+  // @UseGuards(JwtAuthGuard)
+  @Public()
   @Patch("profile")
   async updateProfile(
     @Request() req,
-    @Body() updateProfileDto: UpdateProfileDto
+    @Body() updateProfileDto: ChangePasswordAuthDto
   ) {
     const userId = req.user.userId; // Lấy userId từ payload JWT
     return this.authService.updateProfile(userId, updateProfileDto);
   }
-  // @Get('email')
-  // @Public()
-  // testMail() {
-  //   this.mailerService.sendMail({
-  //     to: 'khuonglol12@gmail.com',
-  //     subject: 'Testing Nest MailerModule ✔',
-  //     text: 'welcome',
-  //     template: 'register',
-  //     context: {
-  //       name: 'email',
-  //       activationCode: 123,
-  //     },
-  //   });
-  //   return 'Hello, world!';
-  // }
 }

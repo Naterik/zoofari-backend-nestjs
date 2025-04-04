@@ -6,6 +6,8 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from "typeorm";
 
 @Entity("events")
@@ -17,7 +19,7 @@ export class Event {
   title: string;
 
   @Column({ type: "text", nullable: true })
-  description: string;
+  description?: string;
 
   @Column({ type: "datetime" })
   start_date: Date;
@@ -25,19 +27,24 @@ export class Event {
   @Column({ type: "datetime" })
   end_date: Date;
 
+  @Column({
+    type: "enum",
+    enum: ["upcoming", "ongoing", "finished"],
+    default: "upcoming",
+  })
+  status: string;
+
   @ManyToOne(() => Enclosure, (enclosure) => enclosure.events)
   @JoinColumn({ name: "enclosure_id" })
   enclosure: Enclosure;
 
-  @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
+  @CreateDateColumn({ type: "datetime", name: "created_at" })
   created_at: Date;
 
-  @Column({
-    type: "datetime",
-    default: () => "CURRENT_TIMESTAMP",
-    onUpdate: "CURRENT_TIMESTAMP",
-  })
+  @UpdateDateColumn({ type: "datetime", name: "updated_at" })
   updated_at: Date;
-  @ManyToOne(() => News, (news) => news.event)
-  news: News[];
+
+  @ManyToOne(() => News, (news) => news.events, { nullable: true })
+  @JoinColumn({ name: "news_id" })
+  news: News | null;
 }

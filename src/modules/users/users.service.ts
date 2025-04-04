@@ -4,12 +4,12 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { CreateUserDto } from "./dto/create-user.dto";
-import { UpdateProfileDto, UpdateUserDto } from "./dto/update-user.dto";
+import { UpdateUserDto } from "./dto/update-user.dto";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Users } from "./entities/user.entity";
-import { Repository } from "typeorm";
+import { User, Gender } from "./entities/user.entity";
+import { In, Repository } from "typeorm";
 import { hashPasswordUtils } from "src/helpers/untils";
-import Roles from "src/modules/roles/entities/role.entity";
+import { Role } from "src/modules/roles/entities/role.entity";
 import {
   ChangePasswordAuthDto,
   CodeAuthDto,
@@ -18,46 +18,56 @@ import {
 import { v4 as uuidv4 } from "uuid";
 import dayjs from "dayjs";
 import { MailerService } from "@nestjs-modules/mailer";
-import { paginate, Paginated, PaginateQuery } from "nestjs-paginate";
+import { PaginateQuery } from "nestjs-paginate";
+import { UserRole } from "src/modules/user_role/entities/user_role.entity";
 
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectRepository(Users)
-    private usersRepository: Repository<Users>,
-    @InjectRepository(Roles)
-    private rolesRepository: Repository<Roles>,
+    @InjectRepository(User)
+    private usersRepository: Repository<User>,
+    @InjectRepository(Role)
+    private rolesRepository: Repository<Role>,
+    @InjectRepository(UserRole)
+    private userRoleRepository: Repository<UserRole>,
     private readonly mailerService: MailerService
   ) {}
 
-  async findAll(query: PaginateQuery): Promise<Paginated<Users>> {
-    return await paginate(query, this.usersRepository, {
-      sortableColumns: ["id", "name", "dateOfBirth"],
-      nullSort: "last",
-      defaultSortBy: [["id", "DESC"]],
-      searchableColumns: ["name", "email", "dateOfBirth"],
-      select: [
-        "id",
-        "name",
-        "dateOfBirth",
-        "email",
-        "phone",
-        "address",
-        "isActive",
-      ],
-      filterableColumns: {
-        email: true,
-        name: true,
-        dateOfBirth: true,
-      },
-    });
+  async findAll(query: PaginateQuery): Promise<any> {
+    try {
+      const page = query.page || 1;
+      const limit = query.limit || 10;
+      const skip = (page - 1) * limit;
+
+      const [users, total] = await this.usersRepository.findAndCount({
+        skip,
+        take: limit,
+        order: { id: "DESC" },
+        select: ["id", "name", "email", "phone"],
+        relations: ["userRoles", "userRoles.role"],
+      });
+
+      return {
+        data: users,
+        meta: {
+          totalItems: total,
+          itemCount: users.length,
+          itemsPerPage: limit,
+          totalPages: Math.ceil(total / limit),
+          currentPage: page,
+        },
+      };
+    } catch (error) {
+      console.error("Error in findAll:", error);
+      throw new BadRequestException("Failed to fetch users");
+    }
   }
 
-  isEmailExist = async (email: string) => {
+  async isEmailExist(email: string): Promise<boolean> {
     const user = await this.usersRepository.findOneBy({ email });
-    if (user) return true;
-    return false;
-  };
+    return !!user;
+  }
+
   async create(createUserDto: CreateUserDto) {
     try {
       const {
@@ -68,93 +78,114 @@ export class UsersService {
         gender,
         dateOfBirth,
         phone,
-        role: roleId = 1,
+        roleIds = [1], // Default role id=1 (User)
       } = createUserDto;
+
       const isExist = await this.isEmailExist(email);
       if (isExist) {
         return {
           message: `Email ${email} đã tồn tại`,
         };
       }
+
       const hashPassword = await hashPasswordUtils(password);
-      const role = await this.rolesRepository.findOne({
-        where: { id: roleId },
-      });
-      if (!role) {
-        throw new BadRequestException("Role không tồn tại");
+      const roles = await this.rolesRepository.findBy({ id: In(roleIds) });
+      if (roles.length !== roleIds.length) {
+        throw new BadRequestException("Một hoặc nhiều role không tồn tại");
       }
-      const user = await this.usersRepository.create({
+
+      const user = this.usersRepository.create({
         name,
         email,
         password: hashPassword,
-        phone: phone,
-        role,
-        dateOfBirth: dateOfBirth,
-        address: address,
-        gender: gender,
+        phone,
+        dateOfBirth: dateOfBirth ? dayjs(dateOfBirth).toDate() : undefined,
+        address,
+        gender,
+        userRoles: roles.map((role) => {
+          const userRole = new UserRole();
+          userRole.role = role;
+          return userRole;
+        }),
       });
-      const saveUser = await this.usersRepository.save(user);
+
+      const savedUser = await this.usersRepository.save(user);
       return {
-        id: saveUser.id,
-        message: "success create user",
+        id: savedUser.id,
+        message: "Tạo user thành công",
       };
     } catch (e) {
       console.log(e);
+      throw new BadRequestException("Có lỗi xảy ra khi tạo user");
     }
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
+  async findOne(id: number) {
+    const user = await this.usersRepository.findOne({
+      where: { id },
+      relations: ["userRoles", "userRoles.role"],
+    });
+    if (!user) {
+      throw new NotFoundException(`User với id ${id} không tồn tại`);
+    }
+    return user;
   }
 
   async findByEmail(email: string) {
-    return await this.usersRepository.findOne({ where: { email: email } });
+    const user = await this.usersRepository.findOne({
+      where: { email },
+      relations: ["userRoles", "userRoles.role"],
+    });
+    return user;
   }
 
   async update(id: number, updateUserDto: UpdateUserDto) {
     try {
       const existingUser = await this.usersRepository.findOne({
-        where: { id: +id },
-        relations: ["role"],
+        where: { id },
+        relations: ["userRoles"],
       });
       if (!existingUser) {
         throw new NotFoundException("User không tồn tại");
       }
-      let role = existingUser.role;
-      if (updateUserDto.role) {
-        const newRole = await this.rolesRepository.findOne({
-          where: { id: updateUserDto.role },
-        });
 
-        if (!newRole) {
-          throw new BadRequestException("Role không tồn tại");
+      let userRoles = existingUser.userRoles;
+      if (updateUserDto.roleIds) {
+        const newRoles = await this.rolesRepository.findBy({
+          id: In(updateUserDto.roleIds),
+        });
+        if (newRoles.length !== updateUserDto.roleIds.length) {
+          throw new BadRequestException("Một hoặc nhiều role không tồn tại");
         }
-        role = newRole;
+        userRoles = newRoles.map((role) => {
+          const userRole = new UserRole();
+          userRole.role = role;
+          userRole.user = existingUser;
+          return userRole;
+        });
       }
-      const updateData: Partial<Users> = {
-        ...updateUserDto,
-        role,
+
+      const updateData: Partial<User> = {
+        name: updateUserDto.name,
+        email: updateUserDto.email,
+        password: updateUserDto.password
+          ? await hashPasswordUtils(updateUserDto.password)
+          : undefined,
+        phone: updateUserDto.phone,
+        address: updateUserDto.address,
+        gender: updateUserDto.gender,
+        dateOfBirth: updateUserDto.dateOfBirth
+          ? dayjs(updateUserDto.dateOfBirth).toDate()
+          : existingUser.dateOfBirth,
+        userRoles,
       };
-      const result = await this.usersRepository.update(id, updateData);
-      if (result.affected === 0) {
-        throw new BadRequestException("Cập nhật thất bại");
-      }
-      const updatedUser = await this.usersRepository
-        .createQueryBuilder("user")
-        .leftJoinAndSelect("user.role", "role")
-        .where("user.id = :id", { id: +id })
-        .select([
-          "user.id",
-          "user.name",
-          "user.email",
-          "user.phone",
-          "user.address",
-          "user.gender",
-          "user.dateOfBirth",
-          "user.isActive",
-          "role.id",
-        ])
-        .getOne();
+
+      await this.usersRepository.save({ ...existingUser, ...updateData });
+      const updatedUser = await this.usersRepository.findOne({
+        where: { id },
+        relations: ["userRoles", "userRoles.role"],
+      });
+
       return {
         message: "Cập nhật thành công",
         user: updatedUser,
@@ -168,11 +199,9 @@ export class UsersService {
   async remove(id: number) {
     try {
       const result = await this.usersRepository.delete(id);
-
       if (result.affected === 0) {
         throw new BadRequestException("Xóa user thất bại");
       }
-
       return {
         message: "Xóa user thành công",
         affected: result.affected,
@@ -191,42 +220,52 @@ export class UsersService {
           message: `Email ${email} đã tồn tại`,
         };
       }
+
       const hashPassword = await hashPasswordUtils(password);
-      const codeId = uuidv4(); //random code id
-      const user = await this.usersRepository.create({
+      const codeId = uuidv4();
+      const defaultRole = await this.rolesRepository.findOne({
+        where: { id: 1 },
+      });
+      if (!defaultRole) {
+        throw new BadRequestException("Role mặc định không tồn tại");
+      }
+
+      const user = this.usersRepository.create({
         name: name || "Unnamed User",
-        email: email,
+        email,
         password: hashPassword,
-        phone: "0000000000",
-        address: "Unknown",
-        gender: "Unknown",
-        dateOfBirth: new Date(),
+        phone: "",
+        address: "",
+        gender: Gender.OTHER,
+        dateOfBirth: dayjs().toDate(),
         isActive: false,
-        role: { id: 1 },
-        codeId: codeId,
+        userRoles: [{ role: defaultRole } as UserRole],
+        codeId,
         codeExpired: dayjs().add(10, "minutes").toDate(),
       });
+
       const savedUser = await this.usersRepository.save(user);
 
-      //send mail
       this.mailerService.sendMail({
         to: user.email,
         subject: "Actived account",
-        text: "welcome", // plaintext body
+        text: "welcome",
         template: "register",
         context: {
           name: user.name,
           activationCode: codeId,
         },
       });
+
       return {
         id: savedUser.id,
       };
     } catch (e) {
       console.log(e);
+      throw new BadRequestException("Có lỗi xảy ra khi đăng ký");
     }
   }
-  //send verification code
+
   async handleActive(data: CodeAuthDto) {
     try {
       const { id, code } = data;
@@ -236,41 +275,45 @@ export class UsersService {
       if (!user) {
         throw new BadRequestException("Mã code sai hoặc đã hết hạn");
       }
-      // check code expired
-      const isExpired = dayjs().isBefore(user.codeExpired);
-      if (isExpired) {
-        return this.usersRepository.update({ id: user.id }, { isActive: true });
+
+      const isNotExpired = dayjs().isBefore(user.codeExpired);
+      if (isNotExpired) {
+        await this.usersRepository.update({ id: user.id }, { isActive: true });
+        return { message: "Kích hoạt tài khoản thành công" };
       }
-      return { isExpired };
+      return { message: "Mã code đã hết hạn" };
     } catch (error) {
       console.log(error.message);
+      throw new BadRequestException("Có lỗi xảy ra khi kích hoạt");
     }
   }
+
   async handleRetryActive(email: string) {
     const user = await this.findByEmail(email);
     if (!user) {
       throw new NotFoundException("Email không tồn tại");
     }
-    //update user
+
     const codeId = uuidv4();
     await this.usersRepository.update(
       { id: user.id },
       {
-        codeId: codeId,
+        codeId,
         codeExpired: dayjs().add(3, "minutes").toDate(),
       }
     );
-    //send mail
+
     this.mailerService.sendMail({
       to: user.email,
       subject: "Send code",
-      text: "welcome", // plaintext body
+      text: "welcome",
       template: "sendcode",
       context: {
         name: user.name || "Unnamed User",
         activationCode: codeId,
       },
     });
+
     return {
       id: user.id,
       email: user.email,
@@ -282,82 +325,69 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException("Email không tồn tại");
     }
+
     const codeId = uuidv4();
     await this.usersRepository.update(
       { id: user.id },
       {
-        codeId: codeId,
+        codeId,
         codeExpired: dayjs().add(5, "minutes").toDate(),
       }
     );
+
     this.mailerService.sendMail({
       to: user.email,
       subject: "Reset password",
-      text: "welcome", // plaintext body
+      text: "welcome",
       template: "sendcode",
       context: {
         name: user.name || "Unnamed User",
         activationCode: codeId,
       },
     });
+
     return {
       id: user.id,
       email: user.email,
     };
   }
+
   async handleChangePassword(data: ChangePasswordAuthDto) {
     if (data.password !== data.confirmPassword) {
       throw new BadRequestException("Mật khẩu không khớp");
     }
+
     const user = await this.findByEmail(data.email);
     if (!user) {
       throw new NotFoundException("Email không tồn tại");
     }
-    const isExpired = dayjs().isBefore(user.codeExpired);
-    if (isExpired) {
+
+    const isNotExpired = dayjs().isBefore(user.codeExpired);
+    if (isNotExpired) {
       const hashPassword = await hashPasswordUtils(data.password);
       await this.usersRepository.update(
         { id: user.id },
         { password: hashPassword }
       );
+      return { message: "Đổi mật khẩu thành công" };
     }
-    return {
-      isExpired,
-    };
+    return { message: "Mã code đã hết hạn" };
   }
-  async getUserHistory(userId: number) {
-    const user = await this.usersRepository.findOne({
-      where: { id: userId },
-      relations: ["ticketSalesAsCustomer", "orders"],
-      select: ["id", "name", "email"],
-    });
 
-    if (!user) {
-      throw new NotFoundException("Người dùng không tồn tại");
-    }
-
-    return {
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-      },
-      ticketSales: user.ticketSalesAsCustomer,
-      orders: user.orders,
-    };
-  }
-  async updateProfile(userId: number, updateProfileDto: UpdateProfileDto) {
+  async updateProfile(userId: number, updateProfileDto: UpdateUserDto) {
     const user = await this.usersRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException("Người dùng không tồn tại");
     }
 
-    const updateData: Partial<Users> = {
+    const updateData: Partial<User> = {
       name: updateProfileDto.name ?? user.name,
       address: updateProfileDto.address ?? user.address,
       phone: updateProfileDto.phone ?? user.phone,
       gender: updateProfileDto.gender ?? user.gender,
-      dateOfBirth: updateProfileDto.dateOfBirth ?? user.dateOfBirth,
+      dateOfBirth: updateProfileDto.dateOfBirth
+        ? dayjs(updateProfileDto.dateOfBirth).toDate()
+        : user.dateOfBirth,
     };
 
     await this.usersRepository.update(userId, updateData);

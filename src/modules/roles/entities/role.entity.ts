@@ -1,13 +1,17 @@
+import { UserRole } from "src/modules/user_role/entities/user_role.entity";
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from "typeorm";
-import { Users } from "src/modules/users/entities/user.entity";
 
-@Entity()
-class Roles {
+@Entity("roles")
+export class Role {
   @PrimaryGeneratedColumn()
-  id!: number;
-  @Column()
-  name!: string;
-  @OneToMany(() => Users, (user) => user.role)
-  users: Users[];
+  id: number;
+
+  @Column({ length: 255 })
+  name: string;
+
+  @Column({ length: 255, nullable: true })
+  description: string;
+
+  @OneToMany(() => UserRole, (userRole) => userRole.role)
+  userRoles: UserRole[];
 }
-export default Roles;

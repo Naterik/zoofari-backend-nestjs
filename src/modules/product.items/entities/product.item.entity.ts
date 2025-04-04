@@ -25,7 +25,7 @@ export class ProductItems {
   description: string;
 
   @Column({ length: 50, unique: true })
-  sku: string; // Mã sản phẩm độc đáo
+  code: string;
 
   @Column()
   stock: number;

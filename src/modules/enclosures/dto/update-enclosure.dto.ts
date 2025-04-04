@@ -1,4 +1,15 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateEnclosureDto } from './create-enclosure.dto';
+import { IsString, IsOptional, IsNumber } from "class-validator";
 
-export class UpdateEnclosureDto extends PartialType(CreateEnclosureDto) {}
+export class UpdateEnclosureDto {
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @IsString()
+  @IsOptional()
+  location?: string;
+
+  @IsNumber()
+  @IsOptional()
+  capacity?: number;
+}
