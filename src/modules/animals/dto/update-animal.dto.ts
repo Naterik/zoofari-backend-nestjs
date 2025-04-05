@@ -1,33 +1,14 @@
-import {
-  IsString,
-  IsOptional,
-  IsEnum,
-  IsNumber,
-  IsDateString,
-} from "class-validator";
+import { PartialType } from "@nestjs/mapped-types";
+import { CreateAnimalDto } from "./create-animal.dto";
+import { IsOptional, IsBoolean } from "class-validator";
+import { Type } from "class-transformer";
 
-export class UpdateAnimalDto {
-  @IsString()
+export class UpdateAnimalDto extends PartialType(CreateAnimalDto) {
   @IsOptional()
-  name?: string;
+  file?: Express.Multer.File;
 
-  @IsNumber()
+  @IsBoolean()
   @IsOptional()
-  species_id?: number;
-
-  @IsNumber()
-  @IsOptional()
-  enclosure_id?: number;
-
-  @IsDateString()
-  @IsOptional()
-  birth_date?: string;
-
-  @IsEnum(["Male", "Female", "Unknown"])
-  @IsOptional()
-  gender?: string;
-
-  @IsString()
-  @IsOptional()
-  health_status?: string;
+  @Type(() => Boolean)
+  replaceImages?: boolean;
 }

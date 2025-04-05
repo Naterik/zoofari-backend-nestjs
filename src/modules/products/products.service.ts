@@ -10,12 +10,15 @@ import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
 import { PaginateQuery } from "nestjs-paginate";
 import { Animal } from "../animals/entities/animal.entity";
+import { ProductItems } from "../product.items/entities/product.item.entity";
 
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private productsRepository: Repository<Product>,
+    @InjectRepository(ProductItems)
+    private productItemsRepository: Repository<ProductItems>,
     @InjectRepository(Animal)
     private animalsRepository: Repository<Animal>
   ) {}
@@ -95,7 +98,6 @@ export class ProductsService {
       .leftJoinAndSelect("product.animal", "animal")
       .leftJoinAndSelect("product.orderDetails", "orderDetails")
       .leftJoinAndSelect("product.productItems", "productItems")
-      .leftJoinAndSelect("product.images", "images")
       .where("product.id = :id", { id })
       .getOne();
 
@@ -103,6 +105,10 @@ export class ProductsService {
       throw new NotFoundException(`Product với id ${id} không tồn tại`);
     }
     return product;
+  }
+  async getVariants(productId: number): Promise<ProductItems[]> {
+    const product = await this.findOne(productId);
+    return product.productItems;
   }
 
   async update(id: number, updateProductDto: UpdateProductDto) {

@@ -29,8 +29,8 @@ export class Event {
 
   @Column({
     type: "enum",
-    enum: ["upcoming", "ongoing", "finished"],
-    default: "upcoming",
+    enum: ["Upcoming", "Ongoing", "Finished"],
+    default: "Upcoming",
   })
   status: string;
 

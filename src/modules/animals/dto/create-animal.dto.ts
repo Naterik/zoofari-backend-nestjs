@@ -1,34 +1,29 @@
-import {
-  IsString,
-  IsNotEmpty,
-  IsOptional,
-  IsEnum,
-  IsNumber,
-  IsDateString,
-} from "class-validator";
+import { IsNotEmpty, IsOptional, IsEnum } from "class-validator";
+import { Transform } from "class-transformer";
 
 export class CreateAnimalDto {
-  @IsString()
   @IsNotEmpty()
   name: string;
 
-  @IsNumber()
   @IsNotEmpty()
   species_id: number;
 
-  @IsNumber()
   @IsNotEmpty()
   enclosure_id: number;
 
-  @IsDateString()
   @IsOptional()
-  birth_date?: string;
+  @Transform(({ value }) => (value ? new Date(value) : null))
+  birth_date?: Date;
 
-  @IsEnum(["Male", "Female", "Unknown"])
+  @IsEnum(["Male", "Female", "Unknown"], {
+    message: "Gender must be Male, Female, or Unknown",
+  })
   @IsOptional()
   gender?: string;
 
-  @IsString()
   @IsNotEmpty()
   health_status: string;
+
+  @IsOptional()
+  file?: Express.Multer.File; // Trường file để upload ảnh
 }

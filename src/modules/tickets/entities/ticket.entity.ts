@@ -9,7 +9,15 @@ export class Ticket {
 
   @Column({
     type: "enum",
-    enum: ["Adult", "Child", "VIP"],
+    enum: [
+      "Adult",
+      "Child",
+      "Senior",
+      "Student",
+      "Group",
+      "Annual Pass",
+      "Family Pass",
+    ],
   })
   type: string;
 
@@ -21,7 +29,4 @@ export class Ticket {
 
   @OneToMany(() => TicketSale, (ticketSale) => ticketSale.ticket)
   ticketSales: TicketSale[];
-
-  @OneToMany(() => Image, (image) => image.ticket)
-  images: Image[];
 }

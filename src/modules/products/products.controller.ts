@@ -34,6 +34,10 @@ export class ProductsController {
   findOne(@Param("id") id: string): Promise<Product> {
     return this.productsService.findOne(+id);
   }
+  @Get(":id/variants")
+  getVariants(@Param("id") id: string) {
+    return this.productsService.getVariants(+id);
+  }
 
   @Patch(":id")
   update(

@@ -1,26 +1,33 @@
-import { Injectable } from '@nestjs/common';
-import { CreateProductItemOptionDto } from './dto/create-product.item.option.dto';
-import { UpdateProductItemOptionDto } from './dto/update-product.item.option.dto';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { ProductItemOptions } from "./entities/product.item.option.entity";
+import { CreateProductItemOptionDto } from "./dto/create-product.item.option.dto";
 
 @Injectable()
 export class ProductItemOptionsService {
-  create(createProductItemOptionDto: CreateProductItemOptionDto) {
-    return 'This action adds a new productItemOption';
+  constructor(
+    @InjectRepository(ProductItemOptions)
+    private readonly productItemOptionsRepository: Repository<ProductItemOptions>
+  ) {}
+
+  async create(createProductItemOptionDto: CreateProductItemOptionDto) {
+    const productItemOption = this.productItemOptionsRepository.create(
+      createProductItemOptionDto
+    );
+    return await this.productItemOptionsRepository.save(productItemOption);
   }
 
-  findAll() {
-    return `This action returns all productItemOptions`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} productItemOption`;
-  }
-
-  update(id: number, updateProductItemOptionDto: UpdateProductItemOptionDto) {
-    return `This action updates a #${id} productItemOption`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} productItemOption`;
+  async findByProductItemId(
+    productItemId: number
+  ): Promise<ProductItemOptions[]> {
+    const options = await this.productItemOptionsRepository.find({
+      where: { productItem: { id: productItemId } },
+    });
+    if (!options.length)
+      throw new NotFoundException(
+        `No options found for product item with id ${productItemId}`
+      );
+    return options;
   }
 }

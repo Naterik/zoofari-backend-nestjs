@@ -12,6 +12,8 @@ import { Species } from "../species/entities/species.entity";
 import { Enclosure } from "../enclosures/entities/enclosure.entity";
 import { PaginateQuery } from "nestjs-paginate";
 import dayjs from "dayjs";
+import { ImagesService } from "../images/images.service";
+import { ConfigService } from "@nestjs/config";
 
 @Injectable()
 export class AnimalsService {
@@ -21,15 +23,16 @@ export class AnimalsService {
     @InjectRepository(Species)
     private speciesRepository: Repository<Species>,
     @InjectRepository(Enclosure)
-    private enclosuresRepository: Repository<Enclosure>
+    private enclosuresRepository: Repository<Enclosure>,
+    private imagesService: ImagesService,
+    private configService: ConfigService
   ) {}
 
   async create(createAnimalDto: CreateAnimalDto) {
     try {
-      const { species_id, enclosure_id, birth_date, ...animalData } =
+      const { species_id, enclosure_id, birth_date, file, ...animalData } =
         createAnimalDto;
 
-      // Validate species
       const species = await this.speciesRepository.findOne({
         where: { id: species_id },
       });
@@ -39,7 +42,6 @@ export class AnimalsService {
         );
       }
 
-      // Validate enclosure
       const enclosure = await this.enclosuresRepository.findOne({
         where: { id: enclosure_id },
       });
@@ -57,6 +59,17 @@ export class AnimalsService {
       });
 
       const savedAnimal = await this.animalsRepository.save(animal);
+
+      // Xử lý upload ảnh nếu có file
+      if (file) {
+        const appUrl = this.configService.get<string>("APP_URL");
+        const fileUrl = `${appUrl}/uploads/${file.filename}`;
+        await this.imagesService.createForAnimal(savedAnimal.id, {
+          url: fileUrl,
+          description: file.originalname,
+        });
+      }
+
       return {
         id: savedAnimal.id,
         message: "Tạo animal thành công",
@@ -77,6 +90,7 @@ export class AnimalsService {
         .createQueryBuilder("animal")
         .leftJoinAndSelect("animal.species", "species")
         .leftJoinAndSelect("animal.enclosure", "enclosure")
+        .leftJoinAndSelect("animal.images", "images")
         .select([
           "animal.id",
           "animal.name",
@@ -89,6 +103,9 @@ export class AnimalsService {
           "species.name",
           "enclosure.id",
           "enclosure.name",
+          "images.id",
+          "images.url",
+          "images.description",
         ])
         .skip(skip)
         .take(limit)
@@ -124,6 +141,7 @@ export class AnimalsService {
     if (!animal) {
       throw new NotFoundException(`Animal với id ${id} không tồn tại`);
     }
+
     return animal;
   }
 
@@ -137,13 +155,19 @@ export class AnimalsService {
         throw new NotFoundException(`Animal với id ${id} không tồn tại`);
       }
 
-      const { species_id, enclosure_id, birth_date, ...rest } = updateAnimalDto;
+      const {
+        species_id,
+        enclosure_id,
+        birth_date,
+        file,
+        replaceImages,
+        ...rest
+      } = updateAnimalDto;
       const updateData: Partial<Animal> & {
         species?: Species;
         enclosure?: Enclosure;
       } = { ...rest };
 
-      // Update species if provided
       if (species_id) {
         const species = await this.speciesRepository.findOne({
           where: { id: species_id },
@@ -156,7 +180,6 @@ export class AnimalsService {
         updateData.species = species;
       }
 
-      // Update enclosure if provided
       if (enclosure_id) {
         const enclosure = await this.enclosuresRepository.findOne({
           where: { id: enclosure_id },
@@ -179,8 +202,27 @@ export class AnimalsService {
       };
 
       await this.animalsRepository.save({ ...animal, ...updateAnimalData });
-      const updatedAnimal = await this.findOne(id);
 
+      // Xử lý upload ảnh nếu có file
+      if (file) {
+        // Nếu replaceImages = true, xóa ảnh cũ trước khi thêm ảnh mới
+        if (replaceImages) {
+          const existingImages = await this.imagesService.findByAnimalId(id);
+          for (const image of existingImages) {
+            await this.imagesService.remove(image.id);
+          }
+        }
+
+        // Thêm ảnh mới
+        const appUrl = this.configService.get<string>("APP_URL");
+        const fileUrl = `${appUrl}/uploads/${file.filename}`;
+        await this.imagesService.createForAnimal(id, {
+          url: fileUrl,
+          description: file.originalname,
+        });
+      }
+
+      const updatedAnimal = await this.findOne(id);
       return {
         message: "Cập nhật thành công",
         animal: updatedAnimal,
@@ -197,6 +239,7 @@ export class AnimalsService {
       if (result.affected === 0) {
         throw new BadRequestException("Xóa animal thất bại");
       }
+      // Images will be automatically deleted due to ON DELETE CASCADE in the images table
       return {
         message: "Xóa animal thành công",
         affected: result.affected,
@@ -204,5 +247,34 @@ export class AnimalsService {
     } catch (e) {
       throw e;
     }
+  }
+
+  async getAnimalImages(animalId: number) {
+    await this.findOne(animalId);
+    return await this.imagesService.findByAnimalId(animalId);
+  }
+
+  async addImageToAnimal(animalId: number, file: Express.Multer.File) {
+    await this.findOne(animalId);
+    const appUrl = this.configService.get<string>("APP_URL");
+    const fileUrl = `${appUrl}/uploads/${file.filename}`;
+    const image = await this.imagesService.createForAnimal(animalId, {
+      url: fileUrl,
+      description: file.originalname,
+    });
+    return { message: "Image added to animal successfully", image };
+  }
+
+  async removeAnimalImage(animalId: number, imageId: number) {
+    await this.findOne(animalId);
+    const images = await this.imagesService.findByAnimalId(animalId);
+    const imageToRemove = images.find((img) => img.id === imageId);
+    if (!imageToRemove) {
+      throw new NotFoundException(
+        `Image with id ${imageId} not found for animal ${animalId}`
+      );
+    }
+    await this.imagesService.remove(imageId);
+    return { message: "Image removed from animal successfully" };
   }
 }

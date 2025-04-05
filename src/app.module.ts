@@ -25,9 +25,11 @@ import { EnclosuresModule } from "./modules/enclosures/enclosures.module";
 import { EmployeesModule } from "./modules/employees/employees.module";
 import { UserRoleModule } from "./modules/user_role/user_role.module";
 import { RolesGuard } from "./auth/passport/roles.guard";
+import { AnimalsModule } from "./modules/animals/animals.module";
 
 @Module({
   imports: [
+    AnimalsModule,
     UsersModule,
     RolesModule,
     ProductsModule,
@@ -38,6 +40,11 @@ import { RolesGuard } from "./auth/passport/roles.guard";
     NewsModule,
     ImagesModule,
     EventsModule,
+    AuthModule,
+    SpeciesModule,
+    EnclosuresModule,
+    EmployeesModule,
+    UserRoleModule,
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ".env" }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -82,11 +89,6 @@ import { RolesGuard } from "./auth/passport/roles.guard";
       }),
       inject: [ConfigService],
     }),
-    AuthModule,
-    SpeciesModule,
-    EnclosuresModule,
-    EmployeesModule,
-    UserRoleModule,
   ],
 
   controllers: [AppController],

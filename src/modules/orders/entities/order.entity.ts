@@ -7,6 +7,7 @@ import {
   ManyToOne,
   JoinColumn,
   OneToMany,
+  CreateDateColumn,
 } from "typeorm";
 
 @Entity("orders")
@@ -18,7 +19,7 @@ export class Order {
   @JoinColumn({ name: "user_id" })
   user: User;
 
-  @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
+  @CreateDateColumn({ type: "datetime", name: "order_date" })
   order_date: Date;
 
   @Column({ type: "decimal", precision: 10, scale: 2 })

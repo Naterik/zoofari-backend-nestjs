@@ -49,7 +49,4 @@ export class Product {
 
   @OneToMany(() => ProductItems, (productItems) => productItems.product)
   productItems: ProductItems[];
-
-  @OneToMany(() => Image, (image) => image.product)
-  images: Image[];
 }

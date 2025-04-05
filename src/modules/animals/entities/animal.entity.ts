@@ -1,7 +1,6 @@
 import { Enclosure } from "src/modules/enclosures/entities/enclosure.entity";
 import { Product } from "src/modules/products/entities/product.entity";
 import { Species } from "src/modules/species/entities/species.entity";
-import { Image } from "src/modules/images/entities/image.entity";
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -12,6 +11,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { Image } from "src/modules/images/entities/image.entity";
 
 @Entity("animals")
 export class Animal {
