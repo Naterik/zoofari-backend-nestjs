@@ -28,11 +28,11 @@ export class UpdateProductItemDto {
   @IsOptional()
   @Type(() => Number)
   productId?: number;
+  @IsOptional()
+  files?: Array<Express.Multer.File>;
 
   @IsBoolean()
   @IsOptional()
   @Type(() => Boolean)
   replaceImages?: boolean;
-
-  file?: Express.Multer.File;
 }

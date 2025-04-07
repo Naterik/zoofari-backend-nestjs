@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, QueryRunner } from "typeorm";
 import { Animal } from "./entities/animal.entity";
 import { CreateAnimalDto } from "./dto/create-animal.dto";
 import { UpdateAnimalDto } from "./dto/update-animal.dto";
@@ -18,65 +18,75 @@ import { ConfigService } from "@nestjs/config";
 @Injectable()
 export class AnimalsService {
   constructor(
-    @InjectRepository(Animal)
-    private animalsRepository: Repository<Animal>,
-    @InjectRepository(Species)
-    private speciesRepository: Repository<Species>,
+    @InjectRepository(Animal) private animalsRepository: Repository<Animal>,
+    @InjectRepository(Species) private speciesRepository: Repository<Species>,
     @InjectRepository(Enclosure)
     private enclosuresRepository: Repository<Enclosure>,
     private imagesService: ImagesService,
     private configService: ConfigService
   ) {}
 
-  async create(createAnimalDto: CreateAnimalDto) {
+  async create(
+    createAnimalDto: CreateAnimalDto,
+    files: Array<Express.Multer.File> = []
+  ) {
+    const queryRunner =
+      this.animalsRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
     try {
-      const { species_id, enclosure_id, birth_date, file, ...animalData } =
+      const { species_id, enclosure_id, birth_date, ...animalData } =
         createAnimalDto;
 
-      const species = await this.speciesRepository.findOne({
+      const species = await queryRunner.manager.findOne(Species, {
         where: { id: species_id },
       });
-      if (!species) {
+      if (!species)
         throw new NotFoundException(
           `Species với id ${species_id} không tồn tại`
         );
-      }
 
-      const enclosure = await this.enclosuresRepository.findOne({
+      const enclosure = await queryRunner.manager.findOne(Enclosure, {
         where: { id: enclosure_id },
       });
-      if (!enclosure) {
+      if (!enclosure)
         throw new NotFoundException(
           `Enclosure với id ${enclosure_id} không tồn tại`
         );
-      }
 
-      const animal = this.animalsRepository.create({
+      const animal = queryRunner.manager.create(Animal, {
         ...animalData,
         species,
         enclosure,
         birth_date: birth_date ? dayjs(birth_date).toDate() : undefined,
       });
 
-      const savedAnimal = await this.animalsRepository.save(animal);
+      const savedAnimal = await queryRunner.manager.save(animal);
 
-      // Xử lý upload ảnh nếu có file
-      if (file) {
+      if (files.length > 0) {
         const appUrl = this.configService.get<string>("APP_URL");
-        const fileUrl = `${appUrl}/uploads/${file.filename}`;
-        await this.imagesService.createForAnimal(savedAnimal.id, {
-          url: fileUrl,
-          description: file.originalname,
-        });
+        for (const file of files) {
+          const fileUrl = `${appUrl}/uploads/${file.filename}`;
+          await this.imagesService.createForAnimal(
+            savedAnimal.id,
+            {
+              url: fileUrl,
+              description: file.originalname,
+            },
+            queryRunner
+          );
+        }
       }
 
-      return {
-        id: savedAnimal.id,
-        message: "Tạo animal thành công",
-      };
+      await queryRunner.commitTransaction();
+      return { id: savedAnimal.id, message: "Tạo animal thành công" };
     } catch (e) {
-      console.log(e);
+      await queryRunner.rollbackTransaction();
+      console.error("Error creating animal:", e);
       throw new BadRequestException("Có lỗi xảy ra khi tạo animal");
+    } finally {
+      await queryRunner.release();
     }
   }
 
@@ -117,9 +127,9 @@ export class AnimalsService {
         meta: {
           totalItems: total,
           itemCount: animals.length,
-          itemsPerPage: limit,
+          itemsPerPage: +limit,
           totalPages: Math.ceil(total / limit),
-          currentPage: page,
+          currentPage: +page,
         },
       };
     } catch (error) {
@@ -133,7 +143,7 @@ export class AnimalsService {
       .createQueryBuilder("animal")
       .leftJoinAndSelect("animal.species", "species")
       .leftJoinAndSelect("animal.enclosure", "enclosure")
-      .leftJoinAndSelect("animal.products", "products")
+
       .leftJoinAndSelect("animal.images", "images")
       .where("animal.id = :id", { id })
       .getOne();
@@ -146,20 +156,24 @@ export class AnimalsService {
   }
 
   async update(id: number, updateAnimalDto: UpdateAnimalDto) {
+    const queryRunner =
+      this.animalsRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
     try {
-      const animal = await this.animalsRepository.findOne({
+      const animal = await queryRunner.manager.findOne(Animal, {
         where: { id },
         relations: ["species", "enclosure"],
       });
-      if (!animal) {
+      if (!animal)
         throw new NotFoundException(`Animal với id ${id} không tồn tại`);
-      }
 
       const {
         species_id,
         enclosure_id,
         birth_date,
-        file,
+        files,
         replaceImages,
         ...rest
       } = updateAnimalDto;
@@ -169,26 +183,24 @@ export class AnimalsService {
       } = { ...rest };
 
       if (species_id) {
-        const species = await this.speciesRepository.findOne({
+        const species = await queryRunner.manager.findOne(Species, {
           where: { id: species_id },
         });
-        if (!species) {
+        if (!species)
           throw new NotFoundException(
             `Species với id ${species_id} không tồn tại`
           );
-        }
         updateData.species = species;
       }
 
       if (enclosure_id) {
-        const enclosure = await this.enclosuresRepository.findOne({
+        const enclosure = await queryRunner.manager.findOne(Enclosure, {
           where: { id: enclosure_id },
         });
-        if (!enclosure) {
+        if (!enclosure)
           throw new NotFoundException(
             `Enclosure với id ${enclosure_id} không tồn tại`
           );
-        }
         updateData.enclosure = enclosure;
       }
 
@@ -201,51 +213,66 @@ export class AnimalsService {
         enclosure: updateData.enclosure ?? animal.enclosure,
       };
 
-      await this.animalsRepository.save({ ...animal, ...updateAnimalData });
+      await queryRunner.manager.save(Animal, {
+        ...animal,
+        ...updateAnimalData,
+      });
 
-      // Xử lý upload ảnh nếu có file
-      if (file) {
-        // Nếu replaceImages = true, xóa ảnh cũ trước khi thêm ảnh mới
+      if (files && files.length > 0) {
         if (replaceImages) {
-          const existingImages = await this.imagesService.findByAnimalId(id);
+          const existingImages = await this.imagesService.findByAnimalId(
+            id,
+            queryRunner
+          );
           for (const image of existingImages) {
-            await this.imagesService.remove(image.id);
+            await this.imagesService.remove(image.id, queryRunner);
           }
         }
 
-        // Thêm ảnh mới
         const appUrl = this.configService.get<string>("APP_URL");
-        const fileUrl = `${appUrl}/uploads/${file.filename}`;
-        await this.imagesService.createForAnimal(id, {
-          url: fileUrl,
-          description: file.originalname,
-        });
+        for (const file of files) {
+          const fileUrl = `${appUrl}/uploads/${file.filename}`;
+          await this.imagesService.createForAnimal(
+            id,
+            {
+              url: fileUrl,
+              description: file.originalname,
+            },
+            queryRunner
+          );
+        }
       }
 
+      await queryRunner.commitTransaction();
       const updatedAnimal = await this.findOne(id);
-      return {
-        message: "Cập nhật thành công",
-        animal: updatedAnimal,
-      };
+      return { message: "Cập nhật thành công", animal: updatedAnimal };
     } catch (e) {
-      console.log(e);
+      await queryRunner.rollbackTransaction();
+      console.error("Error updating animal:", e);
       throw new BadRequestException("Có lỗi xảy ra khi cập nhật animal");
+    } finally {
+      await queryRunner.release();
     }
   }
 
   async remove(id: number) {
+    const queryRunner =
+      this.animalsRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
     try {
-      const result = await this.animalsRepository.delete(id);
-      if (result.affected === 0) {
+      const result = await queryRunner.manager.delete(Animal, id);
+      if (result.affected === 0)
         throw new BadRequestException("Xóa animal thất bại");
-      }
-      // Images will be automatically deleted due to ON DELETE CASCADE in the images table
-      return {
-        message: "Xóa animal thành công",
-        affected: result.affected,
-      };
+      await queryRunner.commitTransaction();
+      return { message: "Xóa animal thành công", affected: result.affected };
     } catch (e) {
+      await queryRunner.rollbackTransaction();
+      console.error("Error deleting animal:", e);
       throw e;
+    } finally {
+      await queryRunner.release();
     }
   }
 
@@ -254,27 +281,63 @@ export class AnimalsService {
     return await this.imagesService.findByAnimalId(animalId);
   }
 
-  async addImageToAnimal(animalId: number, file: Express.Multer.File) {
-    await this.findOne(animalId);
-    const appUrl = this.configService.get<string>("APP_URL");
-    const fileUrl = `${appUrl}/uploads/${file.filename}`;
-    const image = await this.imagesService.createForAnimal(animalId, {
-      url: fileUrl,
-      description: file.originalname,
-    });
-    return { message: "Image added to animal successfully", image };
+  async addImageToAnimal(animalId: number, files: Array<Express.Multer.File>) {
+    const queryRunner =
+      this.animalsRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      await this.findOne(animalId);
+      const appUrl = this.configService.get<string>("APP_URL");
+      const imagePromises = files.map((file) => {
+        const fileUrl = `${appUrl}/uploads/${file.filename}`;
+        return this.imagesService.createForAnimal(
+          animalId,
+          {
+            url: fileUrl,
+            description: file.originalname,
+          },
+          queryRunner
+        );
+      });
+      await Promise.all(imagePromises);
+      await queryRunner.commitTransaction();
+      return { message: "Images added to animal successfully" };
+    } catch (e) {
+      await queryRunner.rollbackTransaction();
+      throw e;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async removeAnimalImage(animalId: number, imageId: number) {
-    await this.findOne(animalId);
-    const images = await this.imagesService.findByAnimalId(animalId);
-    const imageToRemove = images.find((img) => img.id === imageId);
-    if (!imageToRemove) {
-      throw new NotFoundException(
-        `Image with id ${imageId} not found for animal ${animalId}`
+    const queryRunner =
+      this.animalsRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      await this.findOne(animalId);
+      const images = await this.imagesService.findByAnimalId(
+        animalId,
+        queryRunner
       );
+      const imageToRemove = images.find((img) => img.id === imageId);
+      if (!imageToRemove) {
+        throw new NotFoundException(
+          `Image with id ${imageId} not found for animal ${animalId}`
+        );
+      }
+      await this.imagesService.remove(imageId, queryRunner);
+      await queryRunner.commitTransaction();
+      return { message: "Image removed from animal successfully" };
+    } catch (e) {
+      await queryRunner.rollbackTransaction();
+      throw e;
+    } finally {
+      await queryRunner.release();
     }
-    await this.imagesService.remove(imageId);
-    return { message: "Image removed from animal successfully" };
   }
 }

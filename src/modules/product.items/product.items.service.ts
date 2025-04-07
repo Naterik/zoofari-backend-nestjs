@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, QueryRunner } from "typeorm";
 import { ProductItems } from "./entities/product.item.entity";
 import { CreateProductItemDto } from "./dto/create-product.item.dto";
 import { UpdateProductItemDto } from "./dto/update-product.item.dto";
@@ -12,7 +12,6 @@ import { Product } from "../products/entities/product.entity";
 import { PaginateQuery } from "nestjs-paginate";
 import { ImagesService } from "../images/images.service";
 import { ConfigService } from "@nestjs/config";
-import { ProductItemOptions } from "../product.item.options/entities/product.item.option.entity";
 
 @Injectable()
 export class ProductItemsService {
@@ -21,17 +20,23 @@ export class ProductItemsService {
     private productItemsRepository: Repository<ProductItems>,
     @InjectRepository(Product)
     private productsRepository: Repository<Product>,
-    @InjectRepository(ProductItemOptions)
-    private optionsRepository: Repository<ProductItemOptions>,
     private imagesService: ImagesService,
     private configService: ConfigService
   ) {}
 
-  async create(createProductItemDto: CreateProductItemDto) {
-    try {
-      const { productId, file, ...productItemData } = createProductItemDto;
+  async create(
+    createProductItemDto: CreateProductItemDto,
+    files: Array<Express.Multer.File> = []
+  ) {
+    const queryRunner =
+      this.productItemsRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-      const product = await this.productsRepository.findOne({
+    try {
+      const { productId, ...productItemData } = createProductItemDto;
+
+      const product = await queryRunner.manager.findOne(Product, {
         where: { id: productId },
       });
       if (!product) {
@@ -40,31 +45,39 @@ export class ProductItemsService {
         );
       }
 
-      const productItem = this.productItemsRepository.create({
+      const productItem = queryRunner.manager.create(ProductItems, {
         ...productItemData,
         product,
       });
 
-      const savedProductItem =
-        await this.productItemsRepository.save(productItem);
+      const savedProductItem = await queryRunner.manager.save(productItem);
 
-      // Xử lý upload ảnh nếu có file
-      if (file) {
+      if (files.length > 0) {
         const appUrl = this.configService.get<string>("APP_URL");
-        const fileUrl = `${appUrl}/uploads/${file.filename}`;
-        await this.imagesService.createForProductItem(savedProductItem.id, {
-          url: fileUrl,
-          description: file.originalname,
-        });
+        for (const file of files) {
+          const fileUrl = `${appUrl}/uploads/${file.filename}`;
+          await this.imagesService.createForProductItem(
+            savedProductItem.id,
+            {
+              url: fileUrl,
+              description: file.originalname,
+            },
+            queryRunner
+          );
+        }
       }
 
+      await queryRunner.commitTransaction();
       return {
         id: savedProductItem.id,
         message: "Tạo product item thành công",
       };
     } catch (e) {
-      console.log(e);
+      await queryRunner.rollbackTransaction();
+      console.error("Error creating product item:", e);
       throw new BadRequestException("Có lỗi xảy ra khi tạo product item");
+    } finally {
+      await queryRunner.release();
     }
   }
 
@@ -101,9 +114,9 @@ export class ProductItemsService {
         meta: {
           totalItems: total,
           itemCount: productItems.length,
-          itemsPerPage: limit,
+          itemsPerPage: +limit,
           totalPages: Math.ceil(total / limit),
-          currentPage: page,
+          currentPage: +page,
         },
       };
     } catch (error) {
@@ -117,8 +130,6 @@ export class ProductItemsService {
       .createQueryBuilder("productItem")
       .leftJoinAndSelect("productItem.product", "product")
       .leftJoinAndSelect("productItem.images", "images")
-      .leftJoinAndSelect("productItem.productItemOptions", "productItemOptions")
-      .leftJoinAndSelect("productItem.orderDetails", "orderDetails")
       .where("productItem.id = :id", { id })
       .getOne();
 
@@ -129,14 +140,14 @@ export class ProductItemsService {
     return productItem;
   }
 
-  async getOptions(productItemId: number): Promise<ProductItemOptions[]> {
-    const item = await this.findOne(productItemId);
-    return item.productItemOptions;
-  }
-
   async update(id: number, updateProductItemDto: UpdateProductItemDto) {
+    const queryRunner =
+      this.productItemsRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
     try {
-      const productItem = await this.productItemsRepository.findOne({
+      const productItem = await queryRunner.manager.findOne(ProductItems, {
         where: { id },
         relations: ["product"],
       });
@@ -144,13 +155,13 @@ export class ProductItemsService {
         throw new NotFoundException(`Product item với id ${id} không tồn tại`);
       }
 
-      const { productId, file, replaceImages, ...rest } = updateProductItemDto;
-      const updateData: Partial<ProductItems> & {
-        product?: Product;
-      } = { ...rest };
+      const { productId, files, replaceImages, ...rest } = updateProductItemDto;
+      const updateData: Partial<ProductItems> & { product?: Product } = {
+        ...rest,
+      };
 
       if (productId) {
-        const product = await this.productsRepository.findOne({
+        const product = await queryRunner.manager.findOne(Product, {
           where: { id: productId },
         });
         if (!product) {
@@ -170,55 +181,72 @@ export class ProductItemsService {
         product: updateData.product ?? productItem.product,
       };
 
-      await this.productItemsRepository.save({
+      await queryRunner.manager.save(ProductItems, {
         ...productItem,
         ...updateProductItemData,
       });
 
-      // Xử lý upload ảnh nếu có file
-      if (file) {
-        // Nếu replaceImages = true, xóa ảnh cũ trước khi thêm ảnh mới
+      if (files && files.length > 0) {
         if (replaceImages) {
-          const existingImages =
-            await this.imagesService.findByProductItemId(id);
+          const existingImages = await this.imagesService.findByProductItemId(
+            id,
+            queryRunner
+          );
           for (const image of existingImages) {
-            await this.imagesService.remove(image.id);
+            await this.imagesService.remove(image.id, queryRunner);
           }
         }
 
-        // Thêm ảnh mới
         const appUrl = this.configService.get<string>("APP_URL");
-        const fileUrl = `${appUrl}/uploads/${file.filename}`;
-        await this.imagesService.createForProductItem(id, {
-          url: fileUrl,
-          description: file.originalname,
-        });
+        for (const file of files) {
+          const fileUrl = `${appUrl}/uploads/${file.filename}`;
+          await this.imagesService.createForProductItem(
+            id,
+            {
+              url: fileUrl,
+              description: file.originalname,
+            },
+            queryRunner
+          );
+        }
       }
 
+      await queryRunner.commitTransaction();
       const updatedProductItem = await this.findOne(id);
       return {
         message: "Cập nhật thành công",
         productItem: updatedProductItem,
       };
     } catch (e) {
-      console.log(e);
+      await queryRunner.rollbackTransaction();
+      console.error("Error updating product item:", e);
       throw new BadRequestException("Có lỗi xảy ra khi cập nhật product item");
+    } finally {
+      await queryRunner.release();
     }
   }
 
   async remove(id: number) {
+    const queryRunner =
+      this.productItemsRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
     try {
-      const result = await this.productItemsRepository.delete(id);
-      if (result.affected === 0) {
+      const result = await queryRunner.manager.delete(ProductItems, id);
+      if (result.affected === 0)
         throw new BadRequestException("Xóa product item thất bại");
-      }
-      // Images will be automatically deleted due to ON DELETE CASCADE in the images table
+      await queryRunner.commitTransaction();
       return {
         message: "Xóa product item thành công",
         affected: result.affected,
       };
     } catch (e) {
+      await queryRunner.rollbackTransaction();
+      console.error("Error deleting product item:", e);
       throw e;
+    } finally {
+      await queryRunner.release();
     }
   }
 
@@ -229,28 +257,68 @@ export class ProductItemsService {
 
   async addImageToProductItem(
     productItemId: number,
-    file: Express.Multer.File
+    files: Array<Express.Multer.File>
   ) {
-    await this.findOne(productItemId);
-    const appUrl = this.configService.get<string>("APP_URL");
-    const fileUrl = `${appUrl}/uploads/${file.filename}`;
-    const image = await this.imagesService.createForProductItem(productItemId, {
-      url: fileUrl,
-      description: file.originalname,
-    });
-    return { message: "Image added to product item successfully", image };
+    const queryRunner =
+      this.productItemsRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      await this.findOne(productItemId);
+      const appUrl = this.configService.get<string>("APP_URL");
+      const imagePromises = files.map((file) => {
+        const fileUrl = `${appUrl}/uploads/${file.filename}`;
+        return this.imagesService.createForProductItem(
+          productItemId,
+          {
+            url: fileUrl,
+            description: file.originalname,
+          },
+          queryRunner
+        );
+      });
+      await Promise.all(imagePromises);
+      await queryRunner.commitTransaction();
+      return {
+        message: "Images added to product item successfully",
+      };
+    } catch (e) {
+      await queryRunner.rollbackTransaction();
+      throw e;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async removeProductItemImage(productItemId: number, imageId: number) {
-    await this.findOne(productItemId);
-    const images = await this.imagesService.findByProductItemId(productItemId);
-    const imageToRemove = images.find((img) => img.id === imageId);
-    if (!imageToRemove) {
-      throw new NotFoundException(
-        `Image with id ${imageId} not found for product item ${productItemId}`
+    const queryRunner =
+      this.productItemsRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      await this.findOne(productItemId);
+      const images = await this.imagesService.findByProductItemId(
+        productItemId,
+        queryRunner
       );
+      const imageToRemove = images.find((img) => img.id === imageId);
+      if (!imageToRemove) {
+        throw new NotFoundException(
+          `Image with id ${imageId} not found for product item ${productItemId}`
+        );
+      }
+      await this.imagesService.remove(imageId, queryRunner);
+      await queryRunner.commitTransaction();
+      return {
+        message: "Image removed from product item successfully",
+      };
+    } catch (e) {
+      await queryRunner.rollbackTransaction();
+      throw e;
+    } finally {
+      await queryRunner.release();
     }
-    await this.imagesService.remove(imageId);
-    return { message: "Image removed from product item successfully" };
   }
 }

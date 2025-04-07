@@ -1,5 +1,3 @@
-import { OrderDetail } from "src/modules/order.detail/entities/order.detail.entity";
-import { User } from "src/modules/users/entities/user.entity";
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -9,6 +7,10 @@ import {
   OneToMany,
   CreateDateColumn,
 } from "typeorm";
+import { OrderDetail } from "src/modules/order.detail/entities/order.detail.entity";
+import { User } from "src/modules/users/entities/user.entity";
+import { Payment } from "src/modules/payments/entities/payment.entity";
+import { TransactionHistory } from "src/modules/transaction_history/entities/transaction_history.entity";
 
 @Entity("orders")
 export class Order {
@@ -27,11 +29,20 @@ export class Order {
 
   @Column({
     type: "enum",
-    enum: ["Pending", "Completed", "Cancelled"],
+    enum: ["Pending", "Processing", "Paid", "Completed", "Cancelled"],
     default: "Pending",
   })
   status: string;
 
   @OneToMany(() => OrderDetail, (orderDetail) => orderDetail.order)
   orderDetails: OrderDetail[];
+
+  @OneToMany(() => Payment, (payment) => payment.order)
+  payments: Payment[];
+
+  @OneToMany(
+    () => TransactionHistory,
+    (transactionHistory) => transactionHistory.order
+  )
+  transactionHistories: TransactionHistory[];
 }

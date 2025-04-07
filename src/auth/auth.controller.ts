@@ -8,6 +8,7 @@ import {
   UnauthorizedException,
   Patch,
   BadRequestException,
+  HttpStatus,
 } from "@nestjs/common";
 import { AuthService } from "./auth.service";
 import { LocalAuthGuard } from "./passport/local-auth.guard";
@@ -28,14 +29,35 @@ export class AuthController {
   ) {}
 
   @Public()
-  @Post("login")
   @UseGuards(LocalAuthGuard)
-  @ResponseMessage("Fetch login")
-  handleLogin(@Request() req) {
-    if (!req.user || !req.user.id) {
-      throw new BadRequestException("User data is invalid or missing");
+  @Post("login")
+  async login(@Body() body: { username: string; password: string }) {
+    const user = await this.authService.validateUser(
+      body.username,
+      body.password
+    );
+    if (!user) {
+      return {
+        statusCode: HttpStatus.UNAUTHORIZED,
+        message: "Thông tin đăng nhập không hợp lệ",
+        error: "InvalidEmailPasswordError",
+      };
     }
-    return this.authService.login(req.user);
+    if (!user.isActive) {
+      return {
+        statusCode: HttpStatus.BAD_REQUEST,
+        message: "Tài khoản chưa được kích hoạt",
+        error: "InactiveAccountError",
+      };
+    }
+    const loginResult = await this.authService.login(user);
+    // Đặt HTTP status code là 200
+    const response = {
+      statusCode: HttpStatus.OK,
+      message: "Đăng nhập thành công",
+      data: loginResult,
+    };
+    return response;
   }
 
   // @UseGuards(JwtAuthGuard)

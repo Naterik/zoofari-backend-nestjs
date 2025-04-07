@@ -1,3 +1,4 @@
+// animals.controller.ts
 import {
   Controller,
   Get,
@@ -8,9 +9,10 @@ import {
   Delete,
   Query,
   UseInterceptors,
-  UploadedFile,
+  UploadedFiles,
+  BadRequestException,
 } from "@nestjs/common";
-import { FileInterceptor } from "@nestjs/platform-express";
+import { FilesInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
 import { extname } from "path";
 import { AnimalsService } from "./animals.service";
@@ -32,15 +34,25 @@ export class AnimalsController {
   constructor(private readonly animalsService: AnimalsService) {}
 
   @Post()
-  @UseInterceptors(FileInterceptor("file", { storage }))
+  @UseInterceptors(
+    FilesInterceptor("files", 10, {
+      storage,
+      fileFilter: (req, file, callback) => {
+        if (!file.mimetype.match(/image\/(jpg|jpeg|png|gif)$/)) {
+          return callback(
+            new BadRequestException("Only image files are allowed"),
+            false
+          );
+        }
+        callback(null, true);
+      },
+    })
+  )
   async create(
     @Body() createAnimalDto: CreateAnimalDto,
-    @UploadedFile() file: Express.Multer.File
+    @UploadedFiles() files: Array<Express.Multer.File>
   ) {
-    if (file) {
-      createAnimalDto.file = file;
-    }
-    return this.animalsService.create(createAnimalDto);
+    return this.animalsService.create(createAnimalDto, files);
   }
 
   @Get()
@@ -54,42 +66,31 @@ export class AnimalsController {
   }
 
   @Patch(":id")
-  @UseInterceptors(FileInterceptor("file", { storage }))
+  @UseInterceptors(
+    FilesInterceptor("files", 10, {
+      storage,
+      fileFilter: (req, file, callback) => {
+        if (!file.mimetype.match(/image\/(jpg|jpeg|png|gif)$/)) {
+          return callback(
+            new BadRequestException("Only image files are allowed"),
+            false
+          );
+        }
+        callback(null, true);
+      },
+    })
+  )
   async update(
     @Param("id") id: string,
     @Body() updateAnimalDto: UpdateAnimalDto,
-    @UploadedFile() file: Express.Multer.File
+    @UploadedFiles() files: Array<Express.Multer.File>
   ) {
-    if (file) {
-      updateAnimalDto.file = file;
-    }
+    updateAnimalDto.files = files || [];
     return this.animalsService.update(+id, updateAnimalDto);
   }
 
   @Delete(":id")
   remove(@Param("id") id: string) {
     return this.animalsService.remove(+id);
-  }
-
-  @Get(":id/images")
-  getAnimalImages(@Param("id") id: string) {
-    return this.animalsService.getAnimalImages(+id);
-  }
-
-  @Post(":id/images")
-  @UseInterceptors(FileInterceptor("file", { storage }))
-  addImageToAnimal(
-    @Param("id") id: string,
-    @UploadedFile() file: Express.Multer.File
-  ) {
-    return this.animalsService.addImageToAnimal(+id, file);
-  }
-
-  @Delete(":id/images/:imageId")
-  removeAnimalImage(
-    @Param("id") id: string,
-    @Param("imageId") imageId: string
-  ) {
-    return this.animalsService.removeAnimalImage(+id, +imageId);
   }
 }

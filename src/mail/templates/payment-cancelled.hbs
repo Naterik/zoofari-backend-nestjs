@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thông Báo Hủy Thanh Toán</title>
+    <style>
+        /* Đảm bảo các style cơ bản được áp dụng */
+        body {
+            font-family: 'Poppins', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4; /* Màu nền ngoài */
+        }
+        table {
+            border-collapse: collapse;
+        }
+        .content {
+            width: 600px;
+            border: 1px solid #cccccc;
+            background-color: #ffffff; /* Màu nền nội dung */
+        }
+        .header {
+            /* Sử dụng màu khác để biểu thị cảnh báo hoặc hủy */
+            background-color: #E74C3C; /* Ví dụ: Màu đỏ cam */
+            padding: 40px;
+            text-align: center;
+            color: white;
+            font-size: 24px;
+            font-weight: bold; /* Thêm đậm để nhấn mạnh */
+        }
+        .body {
+            padding: 40px;
+            text-align: left;
+            font-size: 16px;
+            line-height: 1.6;
+            color: #333333; /* Màu chữ chính */
+        }
+        .details-box {
+            background-color: #fef6f5; /* Nền màu nhạt hơn cho hộp chi tiết */
+            border: 1px solid #E74C3C; /* Viền cùng màu header */
+            border-radius: 5px;
+            padding: 15px 20px;
+            margin: 0 auto; /* Căn giữa hộp chi tiết */
+            width: 90%; /* Chiều rộng hộp chi tiết */
+            box-sizing: border-box; /* Tính padding vào kích thước */
+        }
+        .details-box strong {
+            color: #333333;
+        }
+        .footer {
+            background-color: #333333; /* Màu footer như mẫu */
+            padding: 30px 40px; /* Giảm padding chút */
+            text-align: center;
+            color: #aaaaaa; /* Màu chữ footer nhạt hơn */
+            font-size: 14px;
+        }
+        .footer strong {
+            color: #ffffff; /* Tên công ty màu trắng cho nổi bật */
+        }
+    </style>
+</head>
+<body style="font-family: 'Poppins', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
+        <tr>
+            <td align="center" style="padding: 20px;">
+                <table class="content" width="600" border="0" cellspacing="0" cellpadding="0" style="border-collapse: collapse; border: 1px solid #cccccc; background-color: #ffffff;">
+                    <tr>
+                        <td class="header" style="background-color: #E74C3C; padding: 40px; text-align: center; color: white; font-size: 24px; font-weight: bold;">
+                            Thanh Toán Đã Bị Hủy
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td class="body" style="padding: 40px 40px 20px 40px; text-align: left; font-size: 16px; line-height: 1.6; color: #333333;">
+                            Xin chào Quý khách,<br><br>
+                            Chúng tôi rất tiếc phải thông báo rằng giao dịch thanh toán cho đơn hàng của bạn đã bị hủy hoặc chưa được hoàn tất vào lúc được ghi nhận dưới đây.
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="padding: 0px 40px 20px 40px; text-align: center;">
+                            <table class="details-box" border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                    <td style="font-size: 16px; line-height: 1.8; color: #555555; text-align: left;">
+                                        <strong>Mã đơn hàng:</strong> #{{orderId}}<br>
+                                        <strong>Tổng số tiền:</strong> {{totalAmount}} ₫<br>
+                                        <strong>Thời gian ghi nhận hủy:</strong> {{cancelDate}}
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td class="body" style="padding: 0px 40px 40px 40px; text-align: left; font-size: 16px; line-height: 1.6; color: #333333;">
+                            Đơn hàng của bạn đã bị hủy.<br><br>
+                            Nếu bạn cần hỗ trợ hoặc có bất kỳ câu hỏi nào, xin vui lòng liên hệ với bộ phận chăm sóc khách hàng của chúng tôi.
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td class="footer" style="background-color: #333333; padding: 30px 40px; text-align: center; color: #aaaaaa; font-size: 14px;">
+                           Cảm ơn bạn đã quan tâm.<br><br>
+                           <strong>ZOOFARI</strong> </td>
+                    </tr>
+                </table>
+                </td>
+        </tr>
+    </table>
+</body>
+</html>

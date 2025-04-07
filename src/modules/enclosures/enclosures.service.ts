@@ -56,9 +56,9 @@ export class EnclosuresService {
         meta: {
           totalItems: total,
           itemCount: enclosures.length,
-          itemsPerPage: limit,
+          itemsPerPage: +limit,
           totalPages: Math.ceil(total / limit),
-          currentPage: page,
+          currentPage: +page,
         },
       };
     } catch (error) {

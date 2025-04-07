@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsNotEmpty } from "class-validator";
+import { IsString, IsNumber, IsNotEmpty, IsOptional } from "class-validator";
 import { Type } from "class-transformer";
 
 export class CreateProductItemDto {
@@ -29,5 +29,6 @@ export class CreateProductItemDto {
   @Type(() => Number)
   productId: number;
 
-  file?: Express.Multer.File;
+  @IsOptional()
+  files?: Array<Express.Multer.File>;
 }

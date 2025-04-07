@@ -55,9 +55,9 @@ export class NewsService {
         meta: {
           totalItems: total,
           itemCount: news.length,
-          itemsPerPage: limit,
+          itemsPerPage: +limit,
           totalPages: Math.ceil(total / limit),
-          currentPage: page,
+          currentPage: +page,
         },
       };
     } catch (error) {

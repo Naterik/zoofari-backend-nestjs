@@ -8,18 +8,18 @@ import {
   Delete,
   Query,
   UseInterceptors,
-  UploadedFile,
+  UploadedFiles,
+  BadRequestException,
   UsePipes,
   ValidationPipe,
 } from "@nestjs/common";
-import { FileInterceptor } from "@nestjs/platform-express";
+import { FilesInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
 import { extname } from "path";
-
-import { PaginateQuery } from "nestjs-paginate";
 import { ProductItemsService } from "./product.items.service";
 import { CreateProductItemDto } from "./dto/create-product.item.dto";
 import { UpdateProductItemDto } from "./dto/update-product.item.dto";
+import { PaginateQuery } from "nestjs-paginate";
 
 const storage = diskStorage({
   destination: "./uploads",
@@ -35,16 +35,26 @@ export class ProductItemsController {
   constructor(private readonly productItemsService: ProductItemsService) {}
 
   @Post()
-  @UseInterceptors(FileInterceptor("file", { storage }))
+  @UseInterceptors(
+    FilesInterceptor("files", 10, {
+      storage,
+      fileFilter: (req, file, callback) => {
+        if (!file.mimetype.match(/image\/(jpg|jpeg|png|gif)$/)) {
+          return callback(
+            new BadRequestException("Only image files are allowed"),
+            false
+          );
+        }
+        callback(null, true);
+      },
+    })
+  )
   @UsePipes(new ValidationPipe({ transform: true }))
   async create(
     @Body() createProductItemDto: CreateProductItemDto,
-    @UploadedFile() file: Express.Multer.File
+    @UploadedFiles() files: Array<Express.Multer.File>
   ) {
-    if (file) {
-      createProductItemDto.file = file;
-    }
-    return this.productItemsService.create(createProductItemDto);
+    return this.productItemsService.create(createProductItemDto, files);
   }
 
   @Get()
@@ -58,26 +68,54 @@ export class ProductItemsController {
   }
 
   @Patch(":id")
-  @UseInterceptors(FileInterceptor("file", { storage }))
+  @UseInterceptors(
+    FilesInterceptor("files", 10, {
+      storage,
+      fileFilter: (req, file, callback) => {
+        if (!file.mimetype.match(/image\/(jpg|jpeg|png|gif)$/)) {
+          return callback(
+            new BadRequestException("Only image files are allowed"),
+            false
+          );
+        }
+        callback(null, true);
+      },
+    })
+  )
   @UsePipes(new ValidationPipe({ transform: true }))
   async update(
     @Param("id") id: string,
     @Body() updateProductItemDto: UpdateProductItemDto,
-    @UploadedFile() file: Express.Multer.File
+    @UploadedFiles() files: Array<Express.Multer.File>
   ) {
-    if (file) {
-      updateProductItemDto.file = file;
-    }
+    updateProductItemDto.files = files || [];
     return this.productItemsService.update(+id, updateProductItemDto);
-  }
-
-  @Get(":id/options")
-  getOptions(@Param("id") id: string) {
-    return this.productItemsService.getOptions(+id);
   }
 
   @Delete(":id")
   remove(@Param("id") id: string) {
     return this.productItemsService.remove(+id);
   }
+
+  // @Get(":id/images")
+  // getProductItemImages(@Param("id") id: string) {
+  //   return this.productItemsService.getProductItemImages(+id);
+  // }
+
+  // @Post(":id/images")
+  // @UseInterceptors(FilesInterceptor("files", { storage }))
+  // addImageToProductItem(
+  //   @Param("id") id: string,
+  //   @UploadedFiles() files: Array<Express.Multer.File>
+  // ) {
+  //   return this.productItemsService.addImageToProductItem(+id, files);
+  // }
+
+  // @Delete(":id/images/:imageId")
+  // removeProductItemImage(
+  //   @Param("id") id: string,
+  //   @Param("imageId") imageId: string
+  // ) {
+  //   return this.productItemsService.removeProductItemImage(+id, +imageId);
+  // }
 }

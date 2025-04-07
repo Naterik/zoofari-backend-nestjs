@@ -18,7 +18,14 @@ export class ProductItems {
   @Column({ length: 100 })
   title: string;
 
-  @Column({ type: "decimal", precision: 10, scale: 2 })
+  @Column("decimal", {
+    precision: 10,
+    scale: 2,
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string) => parseFloat(value),
+    },
+  })
   basePrice: number;
 
   @Column({ length: 255 })

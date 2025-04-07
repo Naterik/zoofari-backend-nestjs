@@ -30,25 +30,12 @@ export class AuthService {
     return user;
   }
 
-  // auth.service.ts
   async login(user: any) {
     const userWithRoles = await this.usersService.findOne(user.id);
-
     const roles = userWithRoles.userRoles.map((userRole) => userRole.role.name);
-
-    const payload = {
-      username: user.email,
-      sub: user.id,
-      roles: roles,
-    };
-
+    const payload = { username: user.email, sub: user.id, roles: roles };
     return {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        roles: roles,
-      },
+      user: { id: user.id, email: user.email, name: user.name, roles: roles },
       access_token: this.jwtService.sign(payload),
     };
   }

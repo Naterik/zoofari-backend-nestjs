@@ -70,50 +70,51 @@ export class UsersService {
 
   async create(createUserDto: CreateUserDto) {
     try {
-      const {
-        name,
-        email,
-        password,
-        address,
-        gender,
-        dateOfBirth,
-        phone,
-        roleIds = [1], // Default role id=1 (User)
-      } = createUserDto;
+      const { name, email, password, address, gender, dateOfBirth, phone } =
+        createUserDto;
 
       const isExist = await this.isEmailExist(email);
       if (isExist) {
-        return {
-          message: `Email ${email} đã tồn tại`,
-        };
+        throw new BadRequestException(`Email ${email} đã tồn tại`);
       }
 
       const hashPassword = await hashPasswordUtils(password);
-      const roles = await this.rolesRepository.findBy({ id: In(roleIds) });
-      if (roles.length !== roleIds.length) {
-        throw new BadRequestException("Một hoặc nhiều role không tồn tại");
+      const defaultRole = await this.rolesRepository.findOne({
+        where: { id: 1 },
+      });
+      if (!defaultRole) {
+        throw new BadRequestException("Default role (USER) does not exist");
       }
 
       const user = this.usersRepository.create({
-        name,
+        name: name || "Unnamed User",
         email,
         password: hashPassword,
-        phone,
+        phone: phone || "",
         dateOfBirth: dateOfBirth ? dayjs(dateOfBirth).toDate() : undefined,
-        address,
-        gender,
-        userRoles: roles.map((role) => {
-          const userRole = new UserRole();
-          userRole.role = role;
-          return userRole;
-        }),
+        address: address || "",
+        gender: gender || Gender.OTHER,
+        userRoles: [],
       });
 
       const savedUser = await this.usersRepository.save(user);
-      return {
-        id: savedUser.id,
-        message: "Tạo user thành công",
-      };
+
+      const userRole = this.userRoleRepository.create({
+        userId: savedUser.id,
+        roleId: defaultRole.id,
+        user: savedUser,
+        role: defaultRole,
+      });
+
+      await this.userRoleRepository.save(userRole);
+
+      const userWithRoles = await this.usersRepository.findOne({
+        where: { id: savedUser.id },
+        relations: ["userRoles", "userRoles.role"],
+        select: ["id", "name", "email", "phone", "userRoles"],
+      });
+
+      return userWithRoles;
     } catch (e) {
       console.log(e);
       throw new BadRequestException("Có lỗi xảy ra khi tạo user");
@@ -143,53 +144,67 @@ export class UsersService {
     try {
       const existingUser = await this.usersRepository.findOne({
         where: { id },
-        relations: ["userRoles"],
+        relations: ["userRoles", "userRoles.role"],
       });
       if (!existingUser) {
         throw new NotFoundException("User không tồn tại");
       }
 
-      let userRoles = existingUser.userRoles;
+      // Update user fields
+      const updateData: Partial<User> = {
+        name: updateUserDto.name ?? existingUser.name,
+        email: updateUserDto.email ?? existingUser.email,
+        password: updateUserDto.password
+          ? await hashPasswordUtils(updateUserDto.password)
+          : existingUser.password,
+        phone: updateUserDto.phone ?? existingUser.phone,
+        address: updateUserDto.address ?? existingUser.address,
+        gender: updateUserDto.gender ?? existingUser.gender,
+        dateOfBirth: updateUserDto.dateOfBirth
+          ? dayjs(updateUserDto.dateOfBirth).toDate()
+          : existingUser.dateOfBirth,
+        isActive: updateUserDto.isActive ?? existingUser.isActive,
+      };
+
+      // Update the user entity with the new fields (excluding userRoles for now)
+      await this.usersRepository.update(id, updateData);
+
+      // Handle role updates if roleIds are provided
       if (updateUserDto.roleIds) {
+        // Fetch the new roles
         const newRoles = await this.rolesRepository.findBy({
           id: In(updateUserDto.roleIds),
         });
         if (newRoles.length !== updateUserDto.roleIds.length) {
           throw new BadRequestException("Một hoặc nhiều role không tồn tại");
         }
-        userRoles = newRoles.map((role) => {
-          const userRole = new UserRole();
-          userRole.role = role;
-          userRole.user = existingUser;
+
+        // Delete existing user_roles entries for this user
+        await this.userRoleRepository.delete({ userId: id });
+
+        // Create new user_roles entries
+        const newUserRoles = newRoles.map((role) => {
+          const userRole = this.userRoleRepository.create({
+            userId: id,
+            roleId: role.id,
+            user: existingUser,
+            role: role,
+          });
           return userRole;
         });
+
+        // Save the new user_roles entries
+        await this.userRoleRepository.save(newUserRoles);
       }
 
-      const updateData: Partial<User> = {
-        name: updateUserDto.name,
-        email: updateUserDto.email,
-        password: updateUserDto.password
-          ? await hashPasswordUtils(updateUserDto.password)
-          : undefined,
-        phone: updateUserDto.phone,
-        address: updateUserDto.address,
-        gender: updateUserDto.gender,
-        dateOfBirth: updateUserDto.dateOfBirth
-          ? dayjs(updateUserDto.dateOfBirth).toDate()
-          : existingUser.dateOfBirth,
-        userRoles,
-      };
-
-      await this.usersRepository.save({ ...existingUser, ...updateData });
+      // Fetch the updated user with roles
       const updatedUser = await this.usersRepository.findOne({
         where: { id },
         relations: ["userRoles", "userRoles.role"],
+        select: ["id", "name", "email", "phone", "userRoles"],
       });
 
-      return {
-        message: "Cập nhật thành công",
-        user: updatedUser,
-      };
+      return updatedUser;
     } catch (e) {
       console.log(e);
       throw new BadRequestException("Có lỗi xảy ra khi cập nhật user");
@@ -374,19 +389,19 @@ export class UsersService {
     return { message: "Mã code đã hết hạn" };
   }
 
-  async updateProfile(userId: number, updateProfileDto: UpdateUserDto) {
+  async updateProfile(userId: number, updateUserDto: UpdateUserDto) {
     const user = await this.usersRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException("Người dùng không tồn tại");
     }
 
     const updateData: Partial<User> = {
-      name: updateProfileDto.name ?? user.name,
-      address: updateProfileDto.address ?? user.address,
-      phone: updateProfileDto.phone ?? user.phone,
-      gender: updateProfileDto.gender ?? user.gender,
-      dateOfBirth: updateProfileDto.dateOfBirth
-        ? dayjs(updateProfileDto.dateOfBirth).toDate()
+      name: updateUserDto.name ?? user.name,
+      address: updateUserDto.address ?? user.address,
+      phone: updateUserDto.phone ?? user.phone,
+      gender: updateUserDto.gender ?? user.gender,
+      dateOfBirth: updateUserDto.dateOfBirth
+        ? dayjs(updateUserDto.dateOfBirth).toDate()
         : user.dateOfBirth,
     };
 

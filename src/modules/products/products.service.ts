@@ -81,9 +81,9 @@ export class ProductsService {
         meta: {
           totalItems: total,
           itemCount: products.length,
-          itemsPerPage: limit,
+          itemsPerPage: +limit,
           totalPages: Math.ceil(total / limit),
-          currentPage: page,
+          currentPage: +page,
         },
       };
     } catch (error) {

@@ -9,7 +9,6 @@ import { ProductsModule } from "./modules/products/products.module";
 import { ProductItemOptionsModule } from "./modules/product.item.options/product.item.options.module";
 import { ProductItemsModule } from "./modules/product.items/product.items.module";
 import { OrdersModule } from "./modules/orders/orders.module";
-import { OrderDetailModule } from "./modules/order.detail/order.detail.module";
 import { NewsModule } from "./modules/news/news.module";
 import { ImagesModule } from "./modules/images/images.module";
 import { EventsModule } from "./modules/events/events.module";
@@ -26,6 +25,8 @@ import { EmployeesModule } from "./modules/employees/employees.module";
 import { UserRoleModule } from "./modules/user_role/user_role.module";
 import { RolesGuard } from "./auth/passport/roles.guard";
 import { AnimalsModule } from "./modules/animals/animals.module";
+import { PaymentsModule } from "./modules/payments/payments.module";
+import { TransactionHistoryModule } from "./modules/transaction_history/transaction_history.module";
 
 @Module({
   imports: [
@@ -36,7 +37,6 @@ import { AnimalsModule } from "./modules/animals/animals.module";
     ProductItemOptionsModule,
     ProductItemsModule,
     OrdersModule,
-    OrderDetailModule,
     NewsModule,
     ImagesModule,
     EventsModule,
@@ -45,6 +45,8 @@ import { AnimalsModule } from "./modules/animals/animals.module";
     EnclosuresModule,
     EmployeesModule,
     UserRoleModule,
+    PaymentsModule,
+    TransactionHistoryModule,
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ".env" }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -78,7 +80,6 @@ import { AnimalsModule } from "./modules/animals/animals.module";
         defaults: {
           from: '"No Reply" <no-reply@localhost>',
         },
-        // preview: true,
         template: {
           dir: join(__dirname, "/mail/templates"),
           adapter: new HandlebarsAdapter(),
@@ -90,7 +91,6 @@ import { AnimalsModule } from "./modules/animals/animals.module";
       inject: [ConfigService],
     }),
   ],
-
   controllers: [AppController],
   providers: [
     AppService,

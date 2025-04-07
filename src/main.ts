@@ -14,6 +14,7 @@ async function bootstrap() {
   app.useStaticAssets(join(__dirname, "..", "uploads"), {
     prefix: "/uploads/",
   });
+
   app.setViewEngine("ejs");
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
   const configService = app.get(ConfigService);

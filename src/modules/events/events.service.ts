@@ -133,9 +133,9 @@ export class EventsService {
         meta: {
           totalItems: total,
           itemCount: events.length,
-          itemsPerPage: limit,
+          itemsPerPage: +limit,
           totalPages: Math.ceil(total / limit),
-          currentPage: page,
+          currentPage: +page,
         },
       };
     } catch (error) {

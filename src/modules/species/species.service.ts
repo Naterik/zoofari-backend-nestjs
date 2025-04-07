@@ -64,9 +64,9 @@ export class SpeciesService {
         meta: {
           totalItems: total,
           itemCount: species.length,
-          itemsPerPage: limit,
+          itemsPerPage: +limit,
           totalPages: Math.ceil(total / limit),
-          currentPage: page,
+          currentPage: +page,
         },
       };
     } catch (error) {

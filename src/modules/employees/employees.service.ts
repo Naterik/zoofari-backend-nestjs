@@ -148,9 +148,9 @@ export class EmployeesService {
         meta: {
           totalItems: total,
           itemCount: employees.length,
-          itemsPerPage: limit,
+          itemsPerPage: +limit,
           totalPages: Math.ceil(total / limit),
-          currentPage: page,
+          currentPage: +page,
         },
       };
     } catch (error) {

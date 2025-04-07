@@ -35,10 +35,13 @@ export class UpdateUserDto {
 
   @IsString()
   @IsOptional()
-  dateOfBirth?: string; // ISO string for flexibility with dayjs
+  dateOfBirth?: string;
 
   @IsArray()
   @IsNumber({}, { each: true })
   @IsOptional()
   roleIds?: number[];
+
+  @IsOptional()
+  isActive?: boolean;
 }

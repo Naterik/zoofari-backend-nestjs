@@ -25,5 +25,5 @@ export class CreateAnimalDto {
   health_status: string;
 
   @IsOptional()
-  file?: Express.Multer.File; // Trường file để upload ảnh
+  files: Array<Express.Multer.File>;
 }

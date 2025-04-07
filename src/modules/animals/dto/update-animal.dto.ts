@@ -5,7 +5,7 @@ import { Type } from "class-transformer";
 
 export class UpdateAnimalDto extends PartialType(CreateAnimalDto) {
   @IsOptional()
-  file?: Express.Multer.File;
+  files: Array<Express.Multer.File>;
 
   @IsBoolean()
   @IsOptional()
