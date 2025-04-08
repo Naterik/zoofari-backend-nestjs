@@ -36,6 +36,10 @@ export class ProductItemsService {
     try {
       const { productId, ...productItemData } = createProductItemDto;
 
+      if (!productItemData.title) {
+        throw new BadRequestException("Tiêu đề không được để trống");
+      }
+
       const product = await queryRunner.manager.findOne(Product, {
         where: { id: productId },
       });
@@ -74,8 +78,9 @@ export class ProductItemsService {
       };
     } catch (e) {
       await queryRunner.rollbackTransaction();
-      console.error("Error creating product item:", e);
-      throw new BadRequestException("Có lỗi xảy ra khi tạo product item");
+      throw new BadRequestException(
+        `Có lỗi xảy ra khi tạo product item: ${e.message}`
+      );
     } finally {
       await queryRunner.release();
     }
@@ -140,6 +145,44 @@ export class ProductItemsService {
     return productItem;
   }
 
+  async findOneWithDetails(id: number) {
+    try {
+      const productItem = await this.productItemsRepository
+        .createQueryBuilder("productItem")
+        .leftJoinAndSelect("productItem.product", "product")
+        .leftJoinAndSelect("productItem.images", "images")
+        .where("productItem.id = :id", { id })
+        .select([
+          "productItem.id",
+          "productItem.title",
+          "productItem.basePrice",
+          "productItem.description",
+          "productItem.code",
+          "productItem.stock",
+          "product.id",
+          "product.name",
+          "images.id",
+          "images.url",
+          "images.description",
+        ])
+        .getOne();
+
+      if (!productItem) {
+        throw new NotFoundException(`Product item với id ${id} không tồn tại`);
+      }
+
+      return productItem;
+    } catch (error) {
+      console.error("Error in findOneWithDetails:", error.message, error.stack);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Failed to fetch product item details: ${error.message}`
+      );
+    }
+  }
+
   async update(id: number, updateProductItemDto: UpdateProductItemDto) {
     const queryRunner =
       this.productItemsRepository.manager.connection.createQueryRunner();
@@ -155,7 +198,7 @@ export class ProductItemsService {
         throw new NotFoundException(`Product item với id ${id} không tồn tại`);
       }
 
-      const { productId, files, replaceImages, ...rest } = updateProductItemDto;
+      const { productId, files, ...rest } = updateProductItemDto;
       const updateData: Partial<ProductItems> & { product?: Product } = {
         ...rest,
       };
@@ -187,16 +230,6 @@ export class ProductItemsService {
       });
 
       if (files && files.length > 0) {
-        if (replaceImages) {
-          const existingImages = await this.imagesService.findByProductItemId(
-            id,
-            queryRunner
-          );
-          for (const image of existingImages) {
-            await this.imagesService.remove(image.id, queryRunner);
-          }
-        }
-
         const appUrl = this.configService.get<string>("APP_URL");
         for (const file of files) {
           const fileUrl = `${appUrl}/uploads/${file.filename}`;
@@ -234,8 +267,9 @@ export class ProductItemsService {
 
     try {
       const result = await queryRunner.manager.delete(ProductItems, id);
-      if (result.affected === 0)
+      if (result.affected === 0) {
         throw new BadRequestException("Xóa product item thất bại");
+      }
       await queryRunner.commitTransaction();
       return {
         message: "Xóa product item thành công",
@@ -280,9 +314,7 @@ export class ProductItemsService {
       });
       await Promise.all(imagePromises);
       await queryRunner.commitTransaction();
-      return {
-        message: "Images added to product item successfully",
-      };
+      return { message: "Images added to product item successfully" };
     } catch (e) {
       await queryRunner.rollbackTransaction();
       throw e;
@@ -311,9 +343,7 @@ export class ProductItemsService {
       }
       await this.imagesService.remove(imageId, queryRunner);
       await queryRunner.commitTransaction();
-      return {
-        message: "Image removed from product item successfully",
-      };
+      return { message: "Image removed from product item successfully" };
     } catch (e) {
       await queryRunner.rollbackTransaction();
       throw e;

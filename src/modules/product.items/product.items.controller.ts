@@ -10,8 +10,7 @@ import {
   UseInterceptors,
   UploadedFiles,
   BadRequestException,
-  UsePipes,
-  ValidationPipe,
+  ParseIntPipe,
 } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
@@ -49,11 +48,19 @@ export class ProductItemsController {
       },
     })
   )
-  @UsePipes(new ValidationPipe({ transform: true }))
   async create(
-    @Body() createProductItemDto: CreateProductItemDto,
+    @Body() body: any,
     @UploadedFiles() files: Array<Express.Multer.File>
   ) {
+    const createProductItemDto: CreateProductItemDto = {
+      title: body.title,
+      basePrice: body.basePrice,
+      description: body.description,
+      code: body.code,
+      stock: body.stock,
+      productId: body.productId,
+      files,
+    };
     return this.productItemsService.create(createProductItemDto, files);
   }
 
@@ -63,8 +70,13 @@ export class ProductItemsController {
   }
 
   @Get(":id")
-  findOne(@Param("id") id: string) {
-    return this.productItemsService.findOne(+id);
+  findOne(@Param("id", ParseIntPipe) id: number) {
+    return this.productItemsService.findOne(id);
+  }
+
+  @Get(":id/details")
+  findOneWithDetails(@Param("id", ParseIntPipe) id: number) {
+    return this.productItemsService.findOneWithDetails(id);
   }
 
   @Patch(":id")
@@ -82,40 +94,36 @@ export class ProductItemsController {
       },
     })
   )
-  @UsePipes(new ValidationPipe({ transform: true }))
   async update(
-    @Param("id") id: string,
-    @Body() updateProductItemDto: UpdateProductItemDto,
+    @Param("id", ParseIntPipe) id: number,
+    @Body() body: any,
     @UploadedFiles() files: Array<Express.Multer.File>
   ) {
-    updateProductItemDto.files = files || [];
-    return this.productItemsService.update(+id, updateProductItemDto);
+    const updateProductItemDto: UpdateProductItemDto = {
+      title: body.title,
+      basePrice: body.basePrice,
+      description: body.description,
+      code: body.code,
+      stock: body.stock,
+      productId: body.productId,
+      files: files || [],
+    };
+    return this.productItemsService.update(id, updateProductItemDto);
   }
 
   @Delete(":id")
-  remove(@Param("id") id: string) {
-    return this.productItemsService.remove(+id);
+  remove(@Param("id", ParseIntPipe) id: number) {
+    return this.productItemsService.remove(id);
   }
 
-  // @Get(":id/images")
-  // getProductItemImages(@Param("id") id: string) {
-  //   return this.productItemsService.getProductItemImages(+id);
-  // }
-
-  // @Post(":id/images")
-  // @UseInterceptors(FilesInterceptor("files", { storage }))
-  // addImageToProductItem(
-  //   @Param("id") id: string,
-  //   @UploadedFiles() files: Array<Express.Multer.File>
-  // ) {
-  //   return this.productItemsService.addImageToProductItem(+id, files);
-  // }
-
-  // @Delete(":id/images/:imageId")
-  // removeProductItemImage(
-  //   @Param("id") id: string,
-  //   @Param("imageId") imageId: string
-  // ) {
-  //   return this.productItemsService.removeProductItemImage(+id, +imageId);
-  // }
+  @Delete(":productItemId/images/:imageId")
+  async removeImage(
+    @Param("productItemId", ParseIntPipe) productItemId: number,
+    @Param("imageId", ParseIntPipe) imageId: number
+  ) {
+    return this.productItemsService.removeProductItemImage(
+      productItemId,
+      imageId
+    );
+  }
 }

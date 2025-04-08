@@ -1,4 +1,3 @@
-// animals.controller.ts
 import {
   Controller,
   Get,
@@ -11,6 +10,7 @@ import {
   UseInterceptors,
   UploadedFiles,
   BadRequestException,
+  ParseIntPipe,
 } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
@@ -49,9 +49,19 @@ export class AnimalsController {
     })
   )
   async create(
-    @Body() createAnimalDto: CreateAnimalDto,
+    @Body() body: any,
     @UploadedFiles() files: Array<Express.Multer.File>
   ) {
+    const createAnimalDto: CreateAnimalDto = {
+      name: body.name,
+      species_id: body.species_id,
+      enclosure_id: body.enclosure_id,
+      birth_date: body.birth_date,
+      gender: body.gender,
+      health_status: body.health_status,
+      files,
+    };
+
     return this.animalsService.create(createAnimalDto, files);
   }
 
@@ -63,6 +73,11 @@ export class AnimalsController {
   @Get(":id")
   findOne(@Param("id") id: string) {
     return this.animalsService.findOne(+id);
+  }
+
+  @Get(":id/details")
+  findOneWithDetails(@Param("id") id: string) {
+    return this.animalsService.findOneWithDetails(+id);
   }
 
   @Patch(":id")
@@ -82,15 +97,33 @@ export class AnimalsController {
   )
   async update(
     @Param("id") id: string,
-    @Body() updateAnimalDto: UpdateAnimalDto,
+    @Body() body: any, // Nhận FormData giống như create
     @UploadedFiles() files: Array<Express.Multer.File>
   ) {
-    updateAnimalDto.files = files || [];
+    // Ánh xạ thủ công từ FormData vào UpdateAnimalDto
+    const updateAnimalDto: UpdateAnimalDto = {
+      name: body.name,
+      species_id: body.species_id,
+      enclosure_id: body.enclosure_id,
+      birth_date: body.birth_date,
+      gender: body.gender,
+      health_status: body.health_status,
+      files: files || [],
+    };
+
     return this.animalsService.update(+id, updateAnimalDto);
   }
 
   @Delete(":id")
   remove(@Param("id") id: string) {
     return this.animalsService.remove(+id);
+  }
+
+  @Delete(":animalId/images/:imageId")
+  async removeImage(
+    @Param("animalId", ParseIntPipe) animalId: number,
+    @Param("imageId", ParseIntPipe) imageId: number
+  ) {
+    return this.animalsService.removeAnimalImage(animalId, imageId);
   }
 }

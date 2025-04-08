@@ -1,38 +1,8 @@
-import { IsString, IsNumber, IsOptional, IsBoolean } from "class-validator";
-import { Type } from "class-transformer";
+import { PartialType } from "@nestjs/mapped-types";
+import { CreateProductItemDto } from "./create-product.item.dto";
+import { IsOptional } from "class-validator";
 
-export class UpdateProductItemDto {
-  @IsString()
+export class UpdateProductItemDto extends PartialType(CreateProductItemDto) {
   @IsOptional()
-  title?: string;
-
-  @IsNumber()
-  @IsOptional()
-  @Type(() => Number)
-  basePrice?: number;
-
-  @IsString()
-  @IsOptional()
-  description?: string;
-
-  @IsString()
-  @IsOptional()
-  code?: string;
-
-  @IsNumber()
-  @IsOptional()
-  @Type(() => Number)
-  stock?: number;
-
-  @IsNumber()
-  @IsOptional()
-  @Type(() => Number)
-  productId?: number;
-  @IsOptional()
-  files?: Array<Express.Multer.File>;
-
-  @IsBoolean()
-  @IsOptional()
-  @Type(() => Boolean)
-  replaceImages?: boolean;
+  files: Array<Express.Multer.File>;
 }

@@ -39,6 +39,10 @@ export class AnimalsService {
       const { species_id, enclosure_id, birth_date, ...animalData } =
         createAnimalDto;
 
+      if (!animalData.name) {
+        throw new BadRequestException("Tên động vật không được để trống");
+      }
+
       const species = await queryRunner.manager.findOne(Species, {
         where: { id: species_id },
       });
@@ -83,8 +87,9 @@ export class AnimalsService {
       return { id: savedAnimal.id, message: "Tạo animal thành công" };
     } catch (e) {
       await queryRunner.rollbackTransaction();
-      console.error("Error creating animal:", e);
-      throw new BadRequestException("Có lỗi xảy ra khi tạo animal");
+      throw new BadRequestException(
+        `Có lỗi xảy ra khi tạo animal: ${e.message}`
+      );
     } finally {
       await queryRunner.release();
     }
@@ -143,7 +148,6 @@ export class AnimalsService {
       .createQueryBuilder("animal")
       .leftJoinAndSelect("animal.species", "species")
       .leftJoinAndSelect("animal.enclosure", "enclosure")
-
       .leftJoinAndSelect("animal.images", "images")
       .where("animal.id = :id", { id })
       .getOne();
@@ -153,6 +157,51 @@ export class AnimalsService {
     }
 
     return animal;
+  }
+
+  async findOneWithDetails(id: number) {
+    try {
+      const animal = await this.animalsRepository
+        .createQueryBuilder("animal")
+        .leftJoinAndSelect("animal.species", "species")
+        .leftJoinAndSelect("animal.enclosure", "enclosure")
+        .leftJoinAndSelect("animal.images", "images")
+        .where("animal.id = :id", { id })
+        .select([
+          "animal.id",
+          "animal.name",
+          "animal.birth_date",
+          "animal.gender",
+          "animal.health_status",
+          "animal.created_at",
+          "animal.updated_at",
+          "species.id",
+          "species.name",
+          "species.scientific_name",
+          "species.description",
+          "species.conservation_status",
+          "enclosure.id",
+          "enclosure.name",
+          "enclosure.location",
+          "enclosure.capacity",
+          "images.id",
+          "images.url",
+          "images.description",
+        ])
+        .getOne();
+
+      if (!animal) {
+        throw new NotFoundException(`Animal với id ${id} không tồn tại`);
+      }
+
+      return animal;
+    } catch (error) {
+      console.error("Error in findOneWithDetails:", error);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException("Failed to fetch animal details");
+    }
   }
 
   async update(id: number, updateAnimalDto: UpdateAnimalDto) {
@@ -169,14 +218,8 @@ export class AnimalsService {
       if (!animal)
         throw new NotFoundException(`Animal với id ${id} không tồn tại`);
 
-      const {
-        species_id,
-        enclosure_id,
-        birth_date,
-        files,
-        replaceImages,
-        ...rest
-      } = updateAnimalDto;
+      const { species_id, enclosure_id, birth_date, files, ...rest } =
+        updateAnimalDto;
       const updateData: Partial<Animal> & {
         species?: Species;
         enclosure?: Enclosure;
@@ -218,17 +261,8 @@ export class AnimalsService {
         ...updateAnimalData,
       });
 
+      // Chỉ thêm ảnh mới nếu có, không can thiệp vào ảnh cũ
       if (files && files.length > 0) {
-        if (replaceImages) {
-          const existingImages = await this.imagesService.findByAnimalId(
-            id,
-            queryRunner
-          );
-          for (const image of existingImages) {
-            await this.imagesService.remove(image.id, queryRunner);
-          }
-        }
-
         const appUrl = this.configService.get<string>("APP_URL");
         for (const file of files) {
           const fileUrl = `${appUrl}/uploads/${file.filename}`;

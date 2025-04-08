@@ -2,13 +2,19 @@ import { IsNotEmpty, IsOptional, IsEnum } from "class-validator";
 import { Transform } from "class-transformer";
 
 export class CreateAnimalDto {
-  @IsNotEmpty()
+  @IsNotEmpty({ message: "Tên động vật không được để trống" })
   name: string;
 
-  @IsNotEmpty()
+  @IsNotEmpty({ message: "Loài không được để trống" })
+  @Transform(({ value }) =>
+    typeof value === "string" ? parseInt(value, 10) : value
+  ) // Chuyển đổi từ chuỗi sang số
   species_id: number;
 
-  @IsNotEmpty()
+  @IsNotEmpty({ message: "Chuồng không được để trống" })
+  @Transform(({ value }) =>
+    typeof value === "string" ? parseInt(value, 10) : value
+  ) // Chuyển đổi từ chuỗi sang số
   enclosure_id: number;
 
   @IsOptional()
@@ -16,14 +22,14 @@ export class CreateAnimalDto {
   birth_date?: Date;
 
   @IsEnum(["Male", "Female", "Unknown"], {
-    message: "Gender must be Male, Female, or Unknown",
+    message: "Giới tính phải là Male, Female, hoặc Unknown",
   })
   @IsOptional()
   gender?: string;
 
-  @IsNotEmpty()
+  @IsNotEmpty({ message: "Tình trạng sức khỏe không được để trống" })
   health_status: string;
 
   @IsOptional()
-  files: Array<Express.Multer.File>;
+  files?: Array<Express.Multer.File>; // Đánh dấu là optional vì files được xử lý riêng qua FilesInterceptor
 }
