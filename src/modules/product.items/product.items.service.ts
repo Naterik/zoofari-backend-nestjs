@@ -4,14 +4,17 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, QueryRunner } from "typeorm";
+import { Repository, QueryRunner, In } from "typeorm";
 import { ProductItems } from "./entities/product.item.entity";
 import { CreateProductItemDto } from "./dto/create-product.item.dto";
 import { UpdateProductItemDto } from "./dto/update-product.item.dto";
 import { Product } from "../products/entities/product.entity";
-import { PaginateQuery } from "nestjs-paginate";
 import { ImagesService } from "../images/images.service";
 import { ConfigService } from "@nestjs/config";
+import { SortedDto } from "./dto/sorted.dto";
+import { ByProductDto } from "./dto/by-product.dto";
+import { ByPriceRangeDto } from "./dto/by-price-range.dto";
+import { SearchDto } from "./dto/search.dto";
 
 @Injectable()
 export class ProductItemsService {
@@ -23,6 +26,28 @@ export class ProductItemsService {
     private imagesService: ImagesService,
     private configService: ConfigService
   ) {}
+
+  private createBaseQuery() {
+    return this.productItemsRepository
+      .createQueryBuilder("productItem")
+      .leftJoinAndSelect("productItem.product", "product")
+      .leftJoinAndSelect("productItem.images", "images")
+      .select([
+        "productItem.id",
+        "productItem.title",
+        "productItem.basePrice",
+        "productItem.description",
+        "productItem.code",
+        "productItem.stock",
+        "productItem.createdAt",
+        "productItem.updatedAt",
+        "product.id",
+        "product.name",
+        "images.id",
+        "images.url",
+        "images.description",
+      ]);
+  }
 
   async create(
     createProductItemDto: CreateProductItemDto,
@@ -86,30 +111,80 @@ export class ProductItemsService {
     }
   }
 
-  async findAll(query: PaginateQuery): Promise<any> {
+  async findAll({
+    page,
+    limit,
+  }: {
+    page: number;
+    limit: number;
+  }): Promise<any> {
     try {
-      const page = query.page || 1;
-      const limit = query.limit || 10;
-      const skip = (page - 1) * limit;
+      const queryBuilder = this.createBaseQuery();
+      queryBuilder.orderBy("productItem.id", "DESC");
 
-      const [productItems, total] = await this.productItemsRepository
-        .createQueryBuilder("productItem")
-        .leftJoinAndSelect("productItem.product", "product")
-        .leftJoinAndSelect("productItem.images", "images")
-        .select([
-          "productItem.id",
-          "productItem.title",
-          "productItem.basePrice",
-          "productItem.description",
-          "productItem.code",
-          "productItem.stock",
-          "product.id",
-          "product.name",
-          "images.id",
-          "images.url",
-          "images.description",
-        ])
-        .skip(skip)
+      const [productItems, total] = await queryBuilder
+        .skip((page - 1) * limit)
+        .take(limit)
+        .getManyAndCount();
+
+      return {
+        data: productItems,
+        meta: {
+          totalItems: total,
+          itemCount: productItems.length,
+          itemsPerPage: limit,
+          totalPages: Math.ceil(total / limit),
+          currentPage: page,
+        },
+      };
+    } catch (error) {
+      console.error("Error in findAll:", error);
+      throw new BadRequestException("Failed to fetch product items");
+    }
+  }
+
+  async findAllSorted({ page, limit }: SortedDto): Promise<any> {
+    try {
+      const queryBuilder = this.createBaseQuery();
+      queryBuilder.orderBy("productItem.updatedAt", "DESC");
+
+      const [productItems, total] = await queryBuilder
+        .skip((page - 1) * limit)
+        .take(limit)
+        .getManyAndCount();
+
+      return {
+        data: productItems,
+        meta: {
+          totalItems: total,
+          itemCount: productItems.length,
+          itemsPerPage: limit,
+          totalPages: Math.ceil(total / limit),
+          currentPage: page,
+        },
+      };
+    } catch (error) {
+      console.error("Error in findAllSorted:", error);
+      throw new BadRequestException("Failed to fetch sorted product items");
+    }
+  }
+
+  async findByProduct({ page, limit, productIds }: ByProductDto): Promise<any> {
+    try {
+      const products = await this.productsRepository.find({
+        where: { id: In(productIds) },
+      });
+      if (!products || products.length === 0) {
+        throw new NotFoundException(
+          `Không tìm thấy sản phẩm với các ID: ${productIds.join(", ")}`
+        );
+      }
+
+      const queryBuilder = this.createBaseQuery();
+      queryBuilder.where("product.id IN (:...productIds)", { productIds });
+
+      const [productItems, total] = await queryBuilder
+        .skip((page - 1) * limit)
         .take(limit)
         .orderBy("productItem.id", "DESC")
         .getManyAndCount();
@@ -119,22 +194,90 @@ export class ProductItemsService {
         meta: {
           totalItems: total,
           itemCount: productItems.length,
-          itemsPerPage: +limit,
+          itemsPerPage: limit,
           totalPages: Math.ceil(total / limit),
-          currentPage: +page,
+          currentPage: page,
         },
       };
     } catch (error) {
-      console.error("Error in findAll:", error);
-      throw new BadRequestException("Failed to fetch product items");
+      console.error("Error in findByProduct:", error);
+      throw error instanceof NotFoundException
+        ? error
+        : new BadRequestException("Failed to fetch product items by product");
+    }
+  }
+
+  async findByPriceRange({
+    page,
+    limit,
+    minPrice,
+    maxPrice,
+  }: ByPriceRangeDto): Promise<any> {
+    try {
+      if (minPrice > maxPrice) {
+        throw new BadRequestException("minPrice không thể lớn hơn maxPrice");
+      }
+
+      const queryBuilder = this.createBaseQuery();
+      queryBuilder
+        .where("productItem.basePrice >= :minPrice", { minPrice })
+        .andWhere("productItem.basePrice <= :maxPrice", { maxPrice });
+
+      const [productItems, total] = await queryBuilder
+        .skip((page - 1) * limit)
+        .take(limit)
+        .orderBy("productItem.basePrice", "ASC")
+        .getManyAndCount();
+
+      return {
+        data: productItems,
+        meta: {
+          totalItems: total,
+          itemCount: productItems.length,
+          itemsPerPage: limit,
+          totalPages: Math.ceil(total / limit),
+          currentPage: page,
+        },
+      };
+    } catch (error) {
+      console.error("Error in findByPriceRange:", error);
+      throw new BadRequestException(
+        "Failed to fetch product items by price range"
+      );
+    }
+  }
+
+  async search({ page, limit, title }: SearchDto): Promise<any> {
+    try {
+      const queryBuilder = this.createBaseQuery();
+      queryBuilder.where("productItem.title LIKE :title", {
+        title: `%${title}%`,
+      });
+
+      const [productItems, total] = await queryBuilder
+        .skip((page - 1) * limit)
+        .take(limit)
+        .orderBy("productItem.id", "DESC")
+        .getManyAndCount();
+
+      return {
+        data: productItems,
+        meta: {
+          totalItems: total,
+          itemCount: productItems.length,
+          itemsPerPage: limit,
+          totalPages: Math.ceil(total / limit),
+          currentPage: page,
+        },
+      };
+    } catch (error) {
+      console.error("Error in search:", error);
+      throw new BadRequestException("Failed to search product items");
     }
   }
 
   async findOne(id: number) {
-    const productItem = await this.productItemsRepository
-      .createQueryBuilder("productItem")
-      .leftJoinAndSelect("productItem.product", "product")
-      .leftJoinAndSelect("productItem.images", "images")
+    const productItem = await this.createBaseQuery()
       .where("productItem.id = :id", { id })
       .getOne();
 
@@ -146,41 +289,7 @@ export class ProductItemsService {
   }
 
   async findOneWithDetails(id: number) {
-    try {
-      const productItem = await this.productItemsRepository
-        .createQueryBuilder("productItem")
-        .leftJoinAndSelect("productItem.product", "product")
-        .leftJoinAndSelect("productItem.images", "images")
-        .where("productItem.id = :id", { id })
-        .select([
-          "productItem.id",
-          "productItem.title",
-          "productItem.basePrice",
-          "productItem.description",
-          "productItem.code",
-          "productItem.stock",
-          "product.id",
-          "product.name",
-          "images.id",
-          "images.url",
-          "images.description",
-        ])
-        .getOne();
-
-      if (!productItem) {
-        throw new NotFoundException(`Product item với id ${id} không tồn tại`);
-      }
-
-      return productItem;
-    } catch (error) {
-      console.error("Error in findOneWithDetails:", error.message, error.stack);
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new BadRequestException(
-        `Failed to fetch product item details: ${error.message}`
-      );
-    }
+    return this.findOne(id);
   }
 
   async update(id: number, updateProductItemDto: UpdateProductItemDto) {
@@ -278,45 +387,6 @@ export class ProductItemsService {
     } catch (e) {
       await queryRunner.rollbackTransaction();
       console.error("Error deleting product item:", e);
-      throw e;
-    } finally {
-      await queryRunner.release();
-    }
-  }
-
-  async getProductItemImages(productItemId: number) {
-    await this.findOne(productItemId);
-    return await this.imagesService.findByProductItemId(productItemId);
-  }
-
-  async addImageToProductItem(
-    productItemId: number,
-    files: Array<Express.Multer.File>
-  ) {
-    const queryRunner =
-      this.productItemsRepository.manager.connection.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
-    try {
-      await this.findOne(productItemId);
-      const appUrl = this.configService.get<string>("APP_URL");
-      const imagePromises = files.map((file) => {
-        const fileUrl = `${appUrl}/uploads/${file.filename}`;
-        return this.imagesService.createForProductItem(
-          productItemId,
-          {
-            url: fileUrl,
-            description: file.originalname,
-          },
-          queryRunner
-        );
-      });
-      await Promise.all(imagePromises);
-      await queryRunner.commitTransaction();
-      return { message: "Images added to product item successfully" };
-    } catch (e) {
-      await queryRunner.rollbackTransaction();
       throw e;
     } finally {
       await queryRunner.release();

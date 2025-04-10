@@ -4,6 +4,8 @@ import {
   Column,
   ManyToOne,
   OneToMany,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from "typeorm";
 import { Product } from "src/modules/products/entities/product.entity";
 import { Image } from "src/modules/images/entities/image.entity";
@@ -18,14 +20,7 @@ export class ProductItems {
   @Column({ length: 100 })
   title: string;
 
-  @Column("decimal", {
-    precision: 10,
-    scale: 2,
-    transformer: {
-      to: (value: number) => value,
-      from: (value: string) => parseFloat(value),
-    },
-  })
+  @Column("decimal", { precision: 10, scale: 2 })
   basePrice: number;
 
   @Column({ length: 255 })
@@ -48,4 +43,10 @@ export class ProductItems {
 
   @OneToMany(() => OrderDetail, (orderDetail) => orderDetail.productItem)
   orderDetails: OrderDetail[];
+
+  @CreateDateColumn({ type: "datetime", name: "created_at" })
+  createdAt: Date;
+
+  @UpdateDateColumn({ type: "datetime", name: "updated_at" })
+  updatedAt: Date;
 }

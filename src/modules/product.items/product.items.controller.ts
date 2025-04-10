@@ -15,10 +15,13 @@ import {
 import { FilesInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
 import { extname } from "path";
+import { CreateProductItemDto } from "../product.items/dto/create-product.item.dto";
+import { UpdateProductItemDto } from "../product.items/dto/update-product.item.dto";
 import { ProductItemsService } from "./product.items.service";
-import { CreateProductItemDto } from "./dto/create-product.item.dto";
-import { UpdateProductItemDto } from "./dto/update-product.item.dto";
-import { PaginateQuery } from "nestjs-paginate";
+import { SortedDto } from "./dto/sorted.dto";
+import { ByProductDto } from "./dto/by-product.dto";
+import { ByPriceRangeDto } from "./dto/by-price-range.dto";
+import { SearchDto } from "./dto/search.dto";
 
 const storage = diskStorage({
   destination: "./uploads",
@@ -65,8 +68,31 @@ export class ProductItemsController {
   }
 
   @Get()
-  findAll(@Query() query: PaginateQuery) {
-    return this.productItemsService.findAll(query);
+  async findAll(
+    @Query("page") page: number = 1,
+    @Query("limit") limit: number = 10
+  ) {
+    return this.productItemsService.findAll({ page, limit });
+  }
+
+  @Get("sorted")
+  async findAllSorted(@Query() query: SortedDto) {
+    return this.productItemsService.findAllSorted(query);
+  }
+
+  @Get("by-product")
+  async findByProduct(@Query() query: ByProductDto) {
+    return this.productItemsService.findByProduct(query);
+  }
+
+  @Get("by-price-range")
+  async findByPriceRange(@Query() query: ByPriceRangeDto) {
+    return this.productItemsService.findByPriceRange(query);
+  }
+
+  @Get("search")
+  async search(@Query() query: SearchDto) {
+    return this.productItemsService.search(query);
   }
 
   @Get(":id")

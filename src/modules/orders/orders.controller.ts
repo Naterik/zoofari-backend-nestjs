@@ -33,6 +33,11 @@ export class OrdersController {
     return this.ordersService.findOne(+id);
   }
 
+  @Get(":id/details")
+  findOrderDetail(@Param("id") id: string) {
+    return this.ordersService.findOrderDetail(+id);
+  }
+
   @Put(":id")
   update(@Param("id") id: string, @Body() updateOrderDto: UpdateOrderDto) {
     return this.ordersService.update(+id, updateOrderDto);
@@ -72,7 +77,6 @@ export class OrdersController {
       message: "Payment successful",
       orderId: result.orderId,
       transactionId: result.transactionId,
-      // redirect: 'https://yourfrontend.com/payment-success',
     };
   }
 
@@ -84,7 +88,6 @@ export class OrdersController {
     const result = await this.ordersService.cancelPaypalPayment(token);
     return {
       message: "Payment cancelled",
-      // redirect: 'https://yourfrontend.com/payment-cancelled', // Điều hướng về frontend
     };
   }
 }

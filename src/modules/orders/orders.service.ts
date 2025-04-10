@@ -70,11 +70,10 @@ export class OrdersService {
     }
   }
 
-  // Hardcode tỷ giá VND sang USD (cho mục đích demo). Trong thực tế, bạn nên lấy từ API.
-  private readonly exchangeRateVNDToUSD = 0.000041; // 1 VND = 0.000041 USD (tỷ giá giả định)
+  private readonly exchangeRateVNDToUSD = 0.000041;
 
   private convertVNDToUSD(amountVND: number): string {
-    const amountUSD = (amountVND * this.exchangeRateVNDToUSD).toFixed(2); // Làm tròn 2 chữ số thập phân
+    const amountUSD = (amountVND * this.exchangeRateVNDToUSD).toFixed(2);
     return amountUSD;
   }
 
@@ -237,6 +236,8 @@ export class OrdersService {
         "order.status",
         "user.id",
         "user.name",
+        "user.email",
+        "user.address",
         "orderDetails.id",
         "orderDetails.quantity",
         "orderDetails.price",
@@ -244,8 +245,10 @@ export class OrdersService {
         "product.name",
         "productItem.id",
         "productItem.title",
+        "productItem.basePrice",
         "productItemOption.id",
         "productItemOption.title",
+        "productItemOption.additionPrice",
         "payments.id",
         "payments.method",
         "payments.status",
@@ -266,7 +269,7 @@ export class OrdersService {
     const [orders, total] = await queryBuilder.getManyAndCount();
 
     return {
-      data: { orders },
+      orders,
       meta: {
         totalItems: total,
         itemCount: orders.length,
@@ -287,11 +290,79 @@ export class OrdersService {
       .leftJoinAndSelect("orderDetails.productItemOption", "productItemOption")
       .leftJoinAndSelect("order.payments", "payments")
       .leftJoinAndSelect("order.transactionHistories", "transactionHistories")
+      .select([
+        "order.id",
+        "order.order_date",
+        "order.total_amount",
+        "order.status",
+        "user.id",
+        "user.name",
+        "user.email",
+        "user.address",
+        "orderDetails.id",
+        "orderDetails.quantity",
+        "orderDetails.price",
+        "product.id",
+        "product.name",
+        "productItem.id",
+        "productItem.title",
+        "productItem.basePrice",
+        "productItemOption.id",
+        "productItemOption.title",
+        "productItemOption.additionPrice",
+        "payments.id",
+        "payments.method",
+        "payments.status",
+        "payments.amount",
+        "transactionHistories.id",
+        "transactionHistories.action",
+        "transactionHistories.amount",
+        "transactionHistories.timestamp",
+      ])
       .where("order.id = :id", { id })
       .getOne();
 
     if (!order) throw new NotFoundException(`Order with id ${id} not found`);
     return order;
+  }
+
+  async findOrderDetail(orderDetailId: number): Promise<OrderDetail> {
+    const orderDetail = await this.orderDetailsRepository
+      .createQueryBuilder("orderDetail")
+      .leftJoinAndSelect("orderDetail.order", "order")
+      .leftJoinAndSelect("order.user", "user")
+      .leftJoinAndSelect("orderDetail.product", "product")
+      .leftJoinAndSelect("orderDetail.productItem", "productItem")
+      .leftJoinAndSelect("orderDetail.productItemOption", "productItemOption")
+      .select([
+        "orderDetail.id",
+        "orderDetail.quantity",
+        "orderDetail.price",
+        "order.id",
+        "order.order_date",
+        "order.total_amount",
+        "order.status",
+        "user.id",
+        "user.name",
+        "user.email",
+        "user.address",
+        "product.id",
+        "product.name",
+        "productItem.id",
+        "productItem.title",
+        "productItem.basePrice",
+        "productItemOption.id",
+        "productItemOption.title",
+        "productItemOption.additionPrice",
+      ])
+      .where("orderDetail.id = :id", { id: orderDetailId })
+      .getOne();
+
+    if (!orderDetail)
+      throw new NotFoundException(
+        `OrderDetail with id ${orderDetailId} not found`
+      );
+    return orderDetail;
   }
 
   async update(id: number, updateOrderDto: UpdateOrderDto): Promise<any> {
@@ -463,6 +534,7 @@ export class OrdersService {
       });
       if (!order) throw new NotFoundException(`Order with id ${id} not found`);
 
+      // Khôi phục số lượng hàng tồn kho
       for (const detail of order.orderDetails) {
         const product = await queryRunner.manager.findOne(Product, {
           where: { id: detail.product.id },
@@ -484,22 +556,20 @@ export class OrdersService {
         await queryRunner.manager.save(productItem);
       }
 
+      // Xóa các bản ghi liên quan trong transaction_history
+      await queryRunner.manager.delete(TransactionHistory, { order: { id } });
+
+      // Xóa các bản ghi liên quan trong payments
+      await queryRunner.manager.delete(Payment, { order: { id } });
+
+      // Xóa các bản ghi liên quan trong order_details
       await queryRunner.manager.delete(OrderDetail, { order: { id } });
+
+      // Xóa bản ghi trong bảng orders
       const result = await queryRunner.manager.delete(Order, id);
 
-      const transactionHistory = queryRunner.manager.create(
-        TransactionHistory,
-        {
-          order,
-          action: "Order Cancelled",
-          amount: order.total_amount,
-          notes: "Order deleted by user or system",
-        }
-      );
-      await queryRunner.manager.save(transactionHistory);
-
       return {
-        message: "Order deleted successfully",
+        message: "Order and related data deleted successfully",
         affected: result.affected,
       };
     });
@@ -599,7 +669,7 @@ export class OrdersService {
         `Order with id ${orderId} is not in Pending status`
       );
 
-    const amountUSD = this.convertVNDToUSD(order.total_amount); // Chuyển đổi từ VND sang USD
+    const amountUSD = this.convertVNDToUSD(order.total_amount);
 
     const request = new paypal.orders.OrdersCreateRequest();
     request.prefer("return=representation");
@@ -608,7 +678,7 @@ export class OrdersService {
       purchase_units: [
         {
           amount: {
-            currency_code: "USD", // PayPal chỉ hỗ trợ USD, không hỗ trợ VND
+            currency_code: "USD",
             value: amountUSD,
           },
           reference_id: orderId.toString(),
@@ -616,8 +686,8 @@ export class OrdersService {
         },
       ],
       application_context: {
-        return_url: "http://127.0.0.1:4040/api/orders/paypal/success",
-        cancel_url: "http://127.0.0.1:4040/api/orders/paypal/cancel",
+        return_url: "http://localhost:3000/orders/paypal/success",
+        cancel_url: "http://localhost:3000/orders/paypal/cancel",
       },
     });
 
@@ -669,7 +739,6 @@ export class OrdersService {
       });
       const savedPayment = await queryRunner.manager.save(payment);
 
-      // Kiểm tra xem purchase_units và amount có tồn tại không
       const amountUSD =
         response.result.purchase_units?.[0]?.amount?.value ?? "N/A";
 
@@ -708,7 +777,6 @@ export class OrdersService {
   }
 
   async cancelPaypalPayment(token: string) {
-    // Lấy thông tin order từ token
     const request = new paypal.orders.OrdersGetRequest(token);
     const response = await this.paypalClient.execute(request);
 
@@ -725,7 +793,6 @@ export class OrdersService {
       if (!order)
         throw new NotFoundException(`Order with id ${orderId} not found`);
 
-      // Kiểm tra trạng thái order để tránh cập nhật không cần thiết
       if (order.status !== "Pending") {
         return { message: "Order already processed", orderId };
       }
