@@ -521,6 +521,58 @@ export class OrdersService {
       };
     });
   }
+  async updateOrderDetail(
+    orderId: number,
+    detailId: number,
+    data: { quantity: number }
+  ) {
+    return this.runTransaction(async (queryRunner) => {
+      const orderDetail = await queryRunner.manager.findOne(OrderDetail, {
+        where: { id: detailId, order: { id: orderId } },
+        relations: ["product", "productItem", "order"],
+      });
+      if (!orderDetail)
+        throw new NotFoundException(
+          `Order detail with id ${detailId} not found`
+        );
+
+      const oldQuantity = orderDetail.quantity;
+      const newQuantity = data.quantity;
+
+      const product = orderDetail.product;
+      const productItem = orderDetail.productItem;
+      product.stock += oldQuantity - newQuantity;
+      productItem.stock += oldQuantity - newQuantity;
+
+      orderDetail.quantity = newQuantity;
+      orderDetail.order.total_amount = await this.recalculateTotal(
+        orderId,
+        queryRunner
+      );
+
+      await queryRunner.manager.save([
+        product,
+        productItem,
+        orderDetail,
+        orderDetail.order,
+      ]);
+      return { message: "Order detail updated", detail: orderDetail };
+    });
+  }
+
+  async recalculateTotal(orderId: number, queryRunner: QueryRunner) {
+    const order = await queryRunner.manager.findOne(Order, {
+      where: { id: orderId },
+      relations: ["orderDetails"],
+    });
+    if (!order) {
+      throw new NotFoundException(`Order with id ${orderId} not found`);
+    }
+    return order.orderDetails.reduce(
+      (sum, detail) => sum + detail.price * detail.quantity,
+      0
+    );
+  }
 
   async remove(id: number): Promise<any> {
     return this.runTransaction(async (queryRunner) => {

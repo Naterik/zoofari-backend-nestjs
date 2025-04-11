@@ -19,6 +19,10 @@ export class News {
   @Column({ type: "text", nullable: true })
   content?: string;
 
+  // New field for default image
+  @Column({ type: "varchar", length: 255, nullable: true })
+  defaultImage?: string;
+
   @CreateDateColumn({ type: "timestamp", name: "created_at" })
   createdAt: Date;
 

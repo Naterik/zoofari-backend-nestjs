@@ -9,21 +9,32 @@ import { News } from "./entities/news.entity";
 import { CreateNewsDto } from "./dto/create-news.dto";
 import { UpdateNewsDto } from "./dto/update-news.dto";
 import { PaginateQuery } from "nestjs-paginate";
+import { ConfigService } from "@nestjs/config";
 
 @Injectable()
 export class NewsService {
   constructor(
     @InjectRepository(News)
-    private newsRepository: Repository<News>
+    private newsRepository: Repository<News>,
+    private configService: ConfigService
   ) {}
 
   async create(createNewsDto: CreateNewsDto) {
     try {
-      const { title, content } = createNewsDto;
+      const { title, content, file } = createNewsDto;
+
+      // Construct the image URL if a file is uploaded
+      let defaultImage: string | undefined;
+      if (file) {
+        const appUrl =
+          this.configService.get<string>("APP_URL") || "http://localhost:3000";
+        defaultImage = `${appUrl}/uploads/news/${file.filename}`;
+      }
 
       const news = this.newsRepository.create({
         title,
         content,
+        defaultImage,
       });
 
       const savedNews = await this.newsRepository.save(news);
@@ -47,7 +58,14 @@ export class NewsService {
         skip,
         take: limit,
         order: { id: "DESC" },
-        select: ["id", "title", "content", "createdAt", "updatedAt"],
+        select: [
+          "id",
+          "title",
+          "content",
+          "defaultImage",
+          "createdAt",
+          "updatedAt",
+        ],
       });
 
       return {
@@ -69,6 +87,14 @@ export class NewsService {
   async findOne(id: number) {
     const news = await this.newsRepository.findOne({
       where: { id },
+      select: [
+        "id",
+        "title",
+        "content",
+        "defaultImage",
+        "createdAt",
+        "updatedAt",
+      ],
     });
     if (!news) {
       throw new NotFoundException(`News với id ${id} không tồn tại`);
@@ -80,9 +106,17 @@ export class NewsService {
     try {
       const news = await this.findOne(id);
 
+      let defaultImage = news.defaultImage;
+      if (updateNewsDto.file) {
+        const appUrl =
+          this.configService.get<string>("APP_URL") || "http://localhost:3000";
+        defaultImage = `${appUrl}/uploads/news/${updateNewsDto.file.filename}`;
+      }
+
       const updateData: Partial<News> = {
         title: updateNewsDto.title ?? news.title,
         content: updateNewsDto.content ?? news.content,
+        defaultImage,
       };
 
       await this.newsRepository.save({ ...news, ...updateData });

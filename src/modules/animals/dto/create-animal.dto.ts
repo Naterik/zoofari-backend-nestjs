@@ -1,8 +1,9 @@
-import { IsNotEmpty, IsOptional, IsEnum } from "class-validator";
+import { IsNotEmpty, IsOptional, IsEnum, IsString } from "class-validator";
 import { Transform } from "class-transformer";
 
 export class CreateAnimalDto {
   @IsNotEmpty({ message: "Tên động vật không được để trống" })
+  @IsString({ message: "Tên động vật phải là chuỗi" })
   name: string;
 
   @IsNotEmpty({ message: "Loài không được để trống" })
@@ -28,7 +29,21 @@ export class CreateAnimalDto {
   gender?: string;
 
   @IsNotEmpty({ message: "Tình trạng sức khỏe không được để trống" })
+  @IsString({ message: "Tình trạng sức khỏe phải là chuỗi" })
   health_status: string;
+
+  // New fields with validation
+  @IsOptional()
+  @IsString({ message: "Mô tả phải là chuỗi" })
+  description?: string;
+
+  @IsOptional()
+  @IsString({ message: "Hình dáng phải là chuỗi" })
+  appearance?: string;
+
+  @IsOptional()
+  @IsString({ message: "Hành vi phải là chuỗi" })
+  behavior?: string;
 
   @IsOptional()
   files?: Array<Express.Multer.File>; // Đánh dấu là optional vì files được xử lý riêng qua FilesInterceptor

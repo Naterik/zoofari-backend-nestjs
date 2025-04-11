@@ -22,6 +22,16 @@ export class Species {
   })
   conservation_status: string;
 
+  // New fields
+  @Column({ type: "text", nullable: true })
+  diet: string;
+
+  @Column({ type: "text", nullable: true })
+  habitat: string;
+
+  @Column({ type: "varchar", length: 100, nullable: true })
+  family: string;
+
   @OneToMany(() => Animal, (animal) => animal.species)
   animals: Animal[];
 }

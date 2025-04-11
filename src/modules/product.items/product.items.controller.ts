@@ -22,6 +22,7 @@ import { SortedDto } from "./dto/sorted.dto";
 import { ByProductDto } from "./dto/by-product.dto";
 import { ByPriceRangeDto } from "./dto/by-price-range.dto";
 import { SearchDto } from "./dto/search.dto";
+import { SortByPriceDto } from "./dto/sort-by-price.dto";
 
 const storage = diskStorage({
   destination: "./uploads",
@@ -78,6 +79,11 @@ export class ProductItemsController {
   @Get("sorted")
   async findAllSorted(@Query() query: SortedDto) {
     return this.productItemsService.findAllSorted(query);
+  }
+
+  @Get("sort-by-price")
+  async findAllSortedByPrice(@Query() query: SortByPriceDto) {
+    return this.productItemsService.findAllSortedByPrice(query);
   }
 
   @Get("by-product")

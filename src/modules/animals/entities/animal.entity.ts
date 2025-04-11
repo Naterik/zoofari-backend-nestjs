@@ -42,6 +42,16 @@ export class Animal {
   @Column({ length: 255 })
   health_status: string;
 
+  // New fields
+  @Column({ type: "text", nullable: true })
+  description: string;
+
+  @Column({ type: "text", nullable: true })
+  appearance: string;
+
+  @Column({ type: "text", nullable: true })
+  behavior: string;
+
   @CreateDateColumn({ type: "datetime", name: "created_at" })
   created_at: Date;
 

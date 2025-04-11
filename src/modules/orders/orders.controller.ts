@@ -47,6 +47,14 @@ export class OrdersController {
   remove(@Param("id") id: string) {
     return this.ordersService.remove(+id);
   }
+  @Put(":id/details/:detailId")
+  updateOrderDetail(
+    @Param("id") id: string,
+    @Param("detailId") detailId: string,
+    @Body() body: { quantity: number }
+  ) {
+    return this.ordersService.updateOrderDetail(+id, +detailId, body);
+  }
 
   @Post(":id/pay")
   processPayment(

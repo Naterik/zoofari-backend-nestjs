@@ -52,15 +52,19 @@ export class AnimalsController {
     @Body() body: any,
     @UploadedFiles() files: Array<Express.Multer.File>
   ) {
-    const createAnimalDto: CreateAnimalDto = {
+    const createAnimalDto = new CreateAnimalDto();
+    Object.assign(createAnimalDto, {
       name: body.name,
       species_id: body.species_id,
       enclosure_id: body.enclosure_id,
       birth_date: body.birth_date,
       gender: body.gender,
       health_status: body.health_status,
+      description: body.description,
+      appearance: body.appearance,
+      behavior: body.behavior,
       files,
-    };
+    });
 
     return this.animalsService.create(createAnimalDto, files);
   }
@@ -108,6 +112,9 @@ export class AnimalsController {
       birth_date: body.birth_date,
       gender: body.gender,
       health_status: body.health_status,
+      description: body.description,
+      appearance: body.appearance,
+      behavior: body.behavior,
       files: files || [],
     };
 

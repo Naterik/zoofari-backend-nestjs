@@ -36,8 +36,15 @@ export class AnimalsService {
     await queryRunner.startTransaction();
 
     try {
-      const { species_id, enclosure_id, birth_date, ...animalData } =
-        createAnimalDto;
+      const {
+        species_id,
+        enclosure_id,
+        birth_date,
+        description,
+        appearance,
+        behavior,
+        ...animalData
+      } = createAnimalDto;
 
       if (!animalData.name) {
         throw new BadRequestException("Tên động vật không được để trống");
@@ -64,6 +71,9 @@ export class AnimalsService {
         species,
         enclosure,
         birth_date: birth_date ? dayjs(birth_date).toDate() : undefined,
+        description, // New field
+        appearance, // New field
+        behavior, // New field
       });
 
       const savedAnimal = await queryRunner.manager.save(animal);
@@ -112,6 +122,9 @@ export class AnimalsService {
           "animal.birth_date",
           "animal.gender",
           "animal.health_status",
+          "animal.description", // New field
+          "animal.appearance", // New field
+          "animal.behavior", // New field
           "animal.created_at",
           "animal.updated_at",
           "species.id",
@@ -150,6 +163,25 @@ export class AnimalsService {
       .leftJoinAndSelect("animal.enclosure", "enclosure")
       .leftJoinAndSelect("animal.images", "images")
       .where("animal.id = :id", { id })
+      .select([
+        "animal.id",
+        "animal.name",
+        "animal.birth_date",
+        "animal.gender",
+        "animal.health_status",
+        "animal.description", // New field
+        "animal.appearance", // New field
+        "animal.behavior", // New field
+        "animal.created_at",
+        "animal.updated_at",
+        "species.id",
+        "species.name",
+        "enclosure.id",
+        "enclosure.name",
+        "images.id",
+        "images.url",
+        "images.description",
+      ])
       .getOne();
 
     if (!animal) {
@@ -173,6 +205,9 @@ export class AnimalsService {
           "animal.birth_date",
           "animal.gender",
           "animal.health_status",
+          "animal.description", // New field
+          "animal.appearance", // New field
+          "animal.behavior", // New field
           "animal.created_at",
           "animal.updated_at",
           "species.id",
@@ -180,6 +215,9 @@ export class AnimalsService {
           "species.scientific_name",
           "species.description",
           "species.conservation_status",
+          "species.diet", // New field from Species
+          "species.habitat", // New field from Species
+          "species.family", // New field from Species
           "enclosure.id",
           "enclosure.name",
           "enclosure.location",
@@ -218,8 +256,16 @@ export class AnimalsService {
       if (!animal)
         throw new NotFoundException(`Animal với id ${id} không tồn tại`);
 
-      const { species_id, enclosure_id, birth_date, files, ...rest } =
-        updateAnimalDto;
+      const {
+        species_id,
+        enclosure_id,
+        birth_date,
+        files,
+        description,
+        appearance,
+        behavior,
+        ...rest
+      } = updateAnimalDto;
       const updateData: Partial<Animal> & {
         species?: Species;
         enclosure?: Enclosure;
@@ -252,6 +298,9 @@ export class AnimalsService {
         birth_date: birth_date ? dayjs(birth_date).toDate() : animal.birth_date,
         gender: updateData.gender ?? animal.gender,
         health_status: updateData.health_status ?? animal.health_status,
+        description: description ?? animal.description, // New field
+        appearance: appearance ?? animal.appearance, // New field
+        behavior: behavior ?? animal.behavior, // New field
         species: updateData.species ?? animal.species,
         enclosure: updateData.enclosure ?? animal.enclosure,
       };

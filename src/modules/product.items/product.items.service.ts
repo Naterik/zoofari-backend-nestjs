@@ -15,6 +15,7 @@ import { SortedDto } from "./dto/sorted.dto";
 import { ByProductDto } from "./dto/by-product.dto";
 import { ByPriceRangeDto } from "./dto/by-price-range.dto";
 import { SearchDto } from "./dto/search.dto";
+import { SortByPriceDto } from "./dto/sort-by-price.dto";
 
 @Injectable()
 export class ProductItemsService {
@@ -169,24 +170,29 @@ export class ProductItemsService {
     }
   }
 
-  async findByProduct({ page, limit, productIds }: ByProductDto): Promise<any> {
+  async findAllSortedByPrice({
+    page,
+    limit,
+    sortByPrice,
+  }: SortByPriceDto): Promise<any> {
     try {
-      const products = await this.productsRepository.find({
-        where: { id: In(productIds) },
-      });
-      if (!products || products.length === 0) {
-        throw new NotFoundException(
-          `Không tìm thấy sản phẩm với các ID: ${productIds.join(", ")}`
+      // Enforce a maximum limit to prevent excessive data fetching
+      const MAX_LIMIT = 100;
+      if (limit > MAX_LIMIT) {
+        throw new BadRequestException(
+          `Limit cannot exceed ${MAX_LIMIT} items per page`
         );
       }
 
       const queryBuilder = this.createBaseQuery();
-      queryBuilder.where("product.id IN (:...productIds)", { productIds });
+      queryBuilder.orderBy(
+        "productItem.basePrice",
+        sortByPrice.toUpperCase() as "ASC" | "DESC"
+      );
 
       const [productItems, total] = await queryBuilder
         .skip((page - 1) * limit)
         .take(limit)
-        .orderBy("productItem.id", "DESC")
         .getManyAndCount();
 
       return {
@@ -200,10 +206,90 @@ export class ProductItemsService {
         },
       };
     } catch (error) {
+      console.error("Error in findAllSortedByPrice:", error);
+      throw new BadRequestException(
+        "Failed to fetch product items sorted by price"
+      );
+    }
+  }
+
+  async findByProduct({ page, limit, productIds }: ByProductDto): Promise<any> {
+    try {
+      // Validate productIds
+      if (!productIds || productIds.length === 0) {
+        throw new BadRequestException("productIds cannot be empty");
+      }
+
+      // Check for invalid productIds (e.g., NaN after parsing)
+      const invalidIds = productIds.filter((id) => isNaN(id));
+      if (invalidIds.length > 0) {
+        throw new BadRequestException(
+          `Invalid productIds: ${invalidIds.join(", ")}`
+        );
+      }
+
+      // Enforce a maximum limit to prevent excessive data fetching
+      const MAX_LIMIT = 100;
+      if (limit > MAX_LIMIT) {
+        throw new BadRequestException(
+          `Limit cannot exceed ${MAX_LIMIT} items per page`
+        );
+      }
+
+      // Fetch product items directly, including related product and images
+      const queryBuilder = this.createBaseQuery();
+      queryBuilder.where("product.id IN (:...productIds)", { productIds });
+
+      const [productItems, total] = await queryBuilder
+        .skip((page - 1) * limit)
+        .take(limit)
+        .orderBy("productItem.id", "DESC")
+        .getManyAndCount();
+
+      // If no product items are found, check if the products exist
+      if (productItems.length === 0) {
+        const products = await this.productsRepository.find({
+          where: { id: In(productIds) },
+        });
+        if (!products || products.length === 0) {
+          throw new NotFoundException(
+            `Không tìm thấy sản phẩm với các ID: ${productIds.join(", ")}`
+          );
+        }
+        // If products exist but no product items are found, return an empty result
+        return {
+          data: [],
+          meta: {
+            totalItems: 0,
+            itemCount: 0,
+            itemsPerPage: limit,
+            totalPages: 0,
+            currentPage: page,
+          },
+        };
+      }
+
+      return {
+        data: productItems,
+        meta: {
+          totalItems: total,
+          itemCount: productItems.length,
+          itemsPerPage: limit,
+          totalPages: Math.ceil(total / limit),
+          currentPage: page,
+        },
+      };
+    } catch (error) {
       console.error("Error in findByProduct:", error);
-      throw error instanceof NotFoundException
-        ? error
-        : new BadRequestException("Failed to fetch product items by product");
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Failed to fetch product items by product: ${error.message}`
+      );
     }
   }
 

@@ -1,11 +1,15 @@
-import { IsString, IsOptional } from "class-validator";
+import { IsOptional, IsString } from "class-validator";
 
 export class UpdateNewsDto {
-  @IsString()
   @IsOptional()
+  @IsString({ message: "Tiêu đề phải là chuỗi" })
   title?: string;
 
-  @IsString()
   @IsOptional()
+  @IsString({ message: "Nội dung phải là chuỗi" })
   content?: string;
+
+  // File upload field (optional)
+  @IsOptional()
+  file?: Express.Multer.File;
 }

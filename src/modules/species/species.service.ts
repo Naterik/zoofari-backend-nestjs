@@ -1,14 +1,14 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import { Species } from "./entities/species.entity";
-import { CreateSpeciesDto } from "./dto/create-species.dto";
 import { UpdateSpeciesDto } from "./dto/update-species.dto";
 import { PaginateQuery } from "nestjs-paginate";
+import { CreateSpeciesDto } from "./dto/create-species.dto";
+import { Repository } from "typeorm";
+import { InjectRepository } from "@nestjs/typeorm";
 
 @Injectable()
 export class SpeciesService {
@@ -19,14 +19,24 @@ export class SpeciesService {
 
   async create(createSpeciesDto: CreateSpeciesDto) {
     try {
-      const { name, scientific_name, description, conservation_status } =
-        createSpeciesDto;
+      const {
+        name,
+        scientific_name,
+        description,
+        conservation_status,
+        diet,
+        habitat,
+        family,
+      } = createSpeciesDto;
 
       const species = this.speciesRepository.create({
         name,
         scientific_name,
         description,
         conservation_status,
+        diet, // New field
+        habitat, // New field
+        family, // New field
       });
 
       const savedSpecies = await this.speciesRepository.save(species);
@@ -56,6 +66,9 @@ export class SpeciesService {
           "scientific_name",
           "description",
           "conservation_status",
+          "diet", // New field
+          "habitat", // New field
+          "family", // New field
         ],
       });
 
@@ -78,6 +91,16 @@ export class SpeciesService {
   async findOne(id: number) {
     const species = await this.speciesRepository.findOne({
       where: { id },
+      select: [
+        "id",
+        "name",
+        "scientific_name",
+        "description",
+        "conservation_status",
+        "diet", // New field
+        "habitat", // New field
+        "family", // New field
+      ],
     });
     if (!species) {
       throw new NotFoundException(`Species với id ${id} không tồn tại`);
@@ -96,6 +119,9 @@ export class SpeciesService {
         description: updateSpeciesDto.description ?? species.description,
         conservation_status:
           updateSpeciesDto.conservation_status ?? species.conservation_status,
+        diet: updateSpeciesDto.diet ?? species.diet, // New field
+        habitat: updateSpeciesDto.habitat ?? species.habitat, // New field
+        family: updateSpeciesDto.family ?? species.family, // New field
       };
 
       await this.speciesRepository.save({ ...species, ...updateData });
